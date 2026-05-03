@@ -13,7 +13,7 @@ export function init(container) {
 
 function render(container) {
   const { branding } = getConfig();
-  const logoSrc = branding.logoUrl || '/assets/images/logo.png';
+  const logoSrc = branding.logoUrl || 'assets/images/logo.png';
   const logoHTML = `<img src="${logoSrc}" alt="Company Logo" class="header-logo" id="header-logo" />`;
 
   const whatsappLink = 'https://wa.me/+917869581020';
@@ -55,7 +55,7 @@ function updateLogo(container) {
   const logoEl = container.querySelector('#header-logo');
   if (!logoEl) return;
 
-  const logoSrc = branding.logoUrl || '/assets/images/logo.png';
+  const logoSrc = branding.logoUrl || 'assets/images/logo.png';
   if (logoEl.tagName === 'IMG') {
     logoEl.src = logoSrc;
   } else {
