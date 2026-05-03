@@ -156,31 +156,6 @@ function renderPanel(panel) {
 
     <div class="admin-body">
 
-      <!-- BRANDING -->
-      <div class="admin-section">
-        <h3 class="admin-section-title">🎨 Branding</h3>
-        
-        <div class="admin-field">
-          <label class="admin-label">WhatsApp Support Link</label>
-          <input type="text" class="input-field" value="${config.branding.whatsappLink || ''}" data-section="branding" data-key="whatsappLink" placeholder="e.g. https://wa.me/919876543210" />
-        </div>
-
-        <div class="admin-field" style="margin-top: var(--space-xl)">
-          <label class="admin-label">Company Logo</label>
-          ${config.branding.logoUrl
-            ? `<div class="admin-logo-preview">
-                <img src="${config.branding.logoUrl}" alt="Logo Preview" class="admin-logo-img" />
-                <button class="btn btn-sm btn-danger" data-action="remove-logo">Remove</button>
-              </div>`
-            : `<p class="text-muted" style="margin-bottom: var(--space-sm)">No logo uploaded</p>`
-          }
-          <label class="btn btn-sm btn-outline admin-upload-btn">
-            📁 Upload Logo
-            <input type="file" accept="image/*" id="admin-logo-input" hidden />
-          </label>
-        </div>
-      </div>
-
       <!-- PRICING -->
       <div class="admin-section">
         <h3 class="admin-section-title">💰 Pricing</h3>
@@ -188,7 +163,7 @@ function renderPanel(panel) {
 
 
         <div class="admin-field">
-          <label class="admin-label">Conversion Cost (₹ / design)</label>
+          <label class="admin-label">Conversion Cost (₹)</label>
           <input type="number" class="input-field" value="${config.pricing.CONVERSION_COST}" data-section="pricing" data-key="CONVERSION_COST" />
         </div>
 
@@ -288,21 +263,6 @@ function bindEvents(panel) {
     close(panel, document.getElementById('admin-overlay'));
   });
 
-  panel.querySelector('#admin-logo-input')?.addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      updateConfig('branding', { logoUrl: ev.target.result });
-      recalculate();
-    };
-    reader.readAsDataURL(file);
-  });
-
-  panel.querySelector('[data-action="remove-logo"]')?.addEventListener('click', () => {
-    updateConfig('branding', { logoUrl: '' });
-    recalculate();
-  });
 }
 
 function saveAll(panel) {

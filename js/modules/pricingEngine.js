@@ -59,19 +59,30 @@ export function calculatePrintCost(dims) {
 }
 
 /**
- * Calculate conversion cost — separate from print cost.
+ * Calculate conversion cost based on array of selected conversions.
  *
- * @param {number} [designCount]
- * @returns {{ conversionCost: number, designCount: number, breakdown: string }}
+ * @param {Array<{id: string, type: string, qty: number}>} conversions
+ * @returns {{ conversionCost: number, breakdown: string, breakdownList: string[] }}
  */
-export function calculateConversionCost(designCount) {
+export function calculateConversionCost(conversions) {
   const { pricing } = getConfig();
-  const count = designCount !== undefined ? designCount : pricing.DEFAULT_DESIGN_COUNT;
-  const cost = pricing.CONVERSION_COST;
-  const conversionCost = count * cost;
+  if (!conversions || conversions.length === 0) {
+    return { conversionCost: 0, breakdown: '', breakdownList: [] };
+  }
+  
+  const costPerUnit = pricing.CONVERSION_COST; // default 50
+  let conversionCost = 0;
+  const breakdownList = [];
+  
+  conversions.forEach(c => {
+    const cost = c.qty * costPerUnit;
+    conversionCost += cost;
+    breakdownList.push(`${c.qty} × ${c.type} (₹${cost})`);
+  });
+  
   return {
     conversionCost,
-    designCount: count,
-    breakdown: `${count} design(s) × ₹${cost} = ₹${conversionCost}`,
+    breakdown: breakdownList.join(' + ') + ` = ₹${conversionCost}`,
+    breakdownList
   };
 }

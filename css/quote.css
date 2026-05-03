@@ -2,8 +2,13 @@
    Quote Section — Light theme
    ======================================== */
 
+.quote-header {
+  justify-content: space-between;
+  align-items: center;
+}
+
 .quote-actions {
-  margin-bottom: var(--space-lg);
+  margin-bottom: 0;
 }
 
 .quote-textarea {
@@ -24,4 +29,32 @@
 .quote-textarea:focus {
   border-color: var(--accent-primary);
   background: #fff;
+}
+
+@media (max-width: 768px) {
+  .quote-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+  }
+  .quote-actions {
+    width: 100%;
+    margin-bottom: 0;
+  }
+  .quote-actions .btn {
+    width: 100%;
+    margin-bottom: 0;
+  }
+  .quote-textarea {
+    width: 100%;
+    max-width: 100%;
+    font-size: 14px;
+    line-height: 1.5;
+    padding: 16px;
+    box-sizing: border-box;
+    overflow-x: hidden;
+    min-height: 180px;
+    border-radius: 12px;
+    display: block;
+  }
 }

@@ -8,7 +8,6 @@ export function init(container) {
   render(container);
   subscribeConfig(() => {
     updateLogo(container);
-    updateWhatsAppLink(container);
   });
 }
 
@@ -17,7 +16,7 @@ function render(container) {
   const logoSrc = branding.logoUrl || '/assets/images/logo.png';
   const logoHTML = `<img src="${logoSrc}" alt="Company Logo" class="header-logo" id="header-logo" />`;
 
-  const whatsappLink = branding.whatsappLink || 'https://wa.me/919876543210';
+  const whatsappLink = 'https://wa.me/+917869581020';
 
   container.innerHTML = `
     <div class="header-inner">
@@ -66,13 +65,5 @@ function updateLogo(container) {
     img.className = 'header-logo';
     img.id = 'header-logo';
     logoEl.replaceWith(img);
-  }
-}
-
-function updateWhatsAppLink(container) {
-  const { branding } = getConfig();
-  const btn = container.querySelector('#btn-whatsapp');
-  if (btn && branding.whatsappLink) {
-    btn.href = branding.whatsappLink;
   }
 }

@@ -10,6 +10,7 @@ const state = {
   format: 'A4',
   rawLength: '',
   quantity: 1,
+  conversions: [], // Array of { id, type, qty }
   designCount: 0,
   deliveryMethod: 'pickup',
   selectedPartner: null,

@@ -61,6 +61,7 @@ function buildHTML(state) {
             <div class="breakdown-title" style="font-size: 15px; color: var(--text-secondary); margin-bottom: 12px; font-weight: 500;">Cost Breakdown</div>
             <div style="display: flex; flex-direction: column; gap: 8px;">
               <div class="breakdown-badge breakdown-print-badge" id="breakdown-print">Print: ${state.isSheetFormat ? state.quantity + ' pcs' : state.totalMeters.toFixed(2) + ' meters'} × ₹${state.rateApplied} / m</div>
+              <div class="breakdown-badge" id="breakdown-conversion-row" style="display: ${state.conversions && state.conversions.length > 0 ? 'inline-block' : 'none'}; background: #e0e7ff; color: #4338ca;">Conv: ${state.conversionBreakdown}</div>
               <div class="breakdown-badge breakdown-delivery-badge" id="breakdown-delivery-row" style="display: ${state.deliveryMethod === 'pickup' ? 'none' : 'inline-block'};">Ship: ${state.shippingBreakdown || state.partnerName} + ₹${state.packagingCost} Pkg</div>
             </div>
             <div id="breakdown-effective-rate" style="font-size: 12px; color: var(--text-muted); margin-top: 10px;">Effective print rate: ₹${effectiveRate} / sq in</div>
@@ -110,6 +111,12 @@ function updateDOM(container, state) {
   if (bDelRow) {
     bDelRow.style.display = state.deliveryMethod === 'pickup' ? 'none' : 'inline-block';
     bDelRow.textContent = 'Ship: ' + (state.shippingBreakdown || state.partnerName) + ' + ₹' + state.packagingCost + ' Pkg';
+  }
+
+  const bConvRow = container.querySelector('#breakdown-conversion-row');
+  if (bConvRow) {
+    bConvRow.style.display = state.conversions && state.conversions.length > 0 ? 'inline-block' : 'none';
+    bConvRow.textContent = 'Conv: ' + state.conversionBreakdown;
   }
 
   // Effective rate sub-text

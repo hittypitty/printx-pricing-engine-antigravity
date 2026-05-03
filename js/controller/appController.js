@@ -50,7 +50,7 @@ export function recalculate() {
     };
 
     const pricing = calculatePrintCost({ format: 'Meters', ...dims });
-    const conversion = calculateConversionCost(s.designCount);
+    const conversion = calculateConversionCost(s.conversions);
 
     // Delivery
     const packagingCost = getPackagingCost(s.deliveryMethod);
@@ -144,7 +144,7 @@ export function recalculate() {
   const pricing = calculatePrintCost({ format: targetFormat, ...dims });
 
   // Step 3: Conversion cost (modular, separate from print)
-  const conversion = calculateConversionCost(s.designCount);
+  const conversion = calculateConversionCost(s.conversions);
 
   // Step 4: Delivery
   const packagingCost = getPackagingCost(s.deliveryMethod);
@@ -207,6 +207,27 @@ export function recalculate() {
  */
 export function onInputChange(field, value) {
   update({ [field]: value });
+  recalculate();
+}
+
+export function addConversion() {
+  const s = getState();
+  const conversions = [...s.conversions, { id: Date.now().toString(), type: 'Puff', qty: 1 }];
+  update({ conversions });
+  recalculate();
+}
+
+export function updateConversion(id, field, value) {
+  const s = getState();
+  const conversions = s.conversions.map(c => c.id === id ? { ...c, [field]: value } : c);
+  update({ conversions });
+  recalculate();
+}
+
+export function removeConversion(id) {
+  const s = getState();
+  const conversions = s.conversions.filter(c => c.id !== id);
+  update({ conversions });
   recalculate();
 }
 

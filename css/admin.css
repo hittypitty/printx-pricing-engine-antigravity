@@ -261,7 +261,18 @@
   color: var(--text-primary);
 }
 
-@media (max-width: 480px) {
-  .admin-panel { width: 100vw; }
-  .admin-field-grid { grid-template-columns: 1fr; }
+@media (max-width: 768px) {
+  .admin-panel { 
+    width: 100vw; 
+    max-width: 100vw;
+  }
+  .admin-field-grid { 
+    grid-template-columns: 1fr; 
+  }
+  .admin-header {
+    position: sticky;
+    top: 0;
+    background: #fff;
+    z-index: 10;
+  }
 }

@@ -31,7 +31,11 @@ export function generateQuote(state) {
     lines.push(`📏 Total Running: ${state.totalMeters.toFixed(2)} meters`);
   }
 
-  lines.push(`🖨️ Print Cost: ₹${printCost + conversionCost}`);
+  lines.push(`🖨️ Print Cost: ₹${printCost}`);
+  
+  if (state.conversions && state.conversions.length > 0) {
+    lines.push(`✨ Conversions: ${state.conversionBreakdown}`);
+  }
 
   if (deliveryMethod === 'pickup') {
     lines.push('🏢 Delivery: Office Pickup (Free)');

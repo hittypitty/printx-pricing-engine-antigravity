@@ -4,7 +4,7 @@
  */
 
 import { subscribe, getState } from '../state/store.js';
-import { onInputChange, onImagesUpdated } from '../controller/appController.js';
+import { onInputChange, onImagesUpdated, addConversion, updateConversion, removeConversion } from '../controller/appController.js';
 import { processImage } from '../modules/imageProcessor.js';
 
 export function init(container) {
@@ -99,8 +99,33 @@ function buildHTML(state) {
         </div>
 
         <div class="field-group" id="quantity-field" style="display: ${state.format !== 'Meters' && state.inputMode !== 'image' ? 'block' : 'none'}; margin-bottom: 0;">
-          <label class="field-label">Quantity</label>
-          <input type="number" class="input-field" min="1" value="${state.quantity}" data-field="quantity" id="input-quantity" />
+          <div class="input-row">
+            <div class="input-col">
+              <label class="field-label">SELECTED FORMAT</label>
+              <div id="format-badge" style="background: #fdf2f8; border: 1px solid #fce7f3; border-radius: 8px; padding: 10px 14px; display: flex; flex-direction: column; justify-content: center; min-height: 44px;">
+                <span id="format-badge-name" style="color: #9d174d; font-weight: 700; font-size: 14px;">A4 Sheet</span>
+                <span id="format-badge-dims" style="color: #be185d; font-size: 11px; margin-top: 2px;">(11" x 8")</span>
+              </div>
+            </div>
+            <div class="input-col">
+              <label class="field-label">QUANTITY (PIECES)</label>
+              <div class="number-input-group">
+                <button class="btn-spin" data-action="dec-qty">-</button>
+                <input type="number" class="input-field" min="1" value="${state.quantity}" data-field="quantity" id="input-quantity" />
+                <button class="btn-spin" data-action="inc-qty">+</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="height: 1px; background: var(--border-color); margin: var(--space-xl) 0;"></div>
+
+        <div class="field-group" style="margin-bottom: 0;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <label class="field-label" style="margin-bottom: 0;">CONVERSIONS</label>
+            <button class="btn-add-conversion" data-action="add-conversion">+ Add Conversion</button>
+          </div>
+          <div id="conversions-container" style="display: flex; flex-direction: column; gap: 12px;"></div>
         </div>
 
         <div class="validation-error" id="validation-error" style="display: none"></div>
@@ -178,6 +203,40 @@ function handleClick(e) {
       onImagesUpdated(newImages);
       break;
     }
+    case 'add-conversion':
+      addConversion();
+      break;
+    case 'remove-conversion':
+      removeConversion(btn.dataset.id);
+      break;
+    case 'inc-qty':
+      onInputChange('quantity', getState().quantity + 1);
+      break;
+    case 'dec-qty':
+      onInputChange('quantity', Math.max(1, getState().quantity - 1));
+      break;
+    case 'inc-conv': {
+      const conv = getState().conversions.find(c => c.id === btn.dataset.id);
+      if (conv) updateConversion(conv.id, 'qty', conv.qty + 1);
+      break;
+    }
+    case 'dec-conv': {
+      const conv = getState().conversions.find(c => c.id === btn.dataset.id);
+      if (conv && conv.qty > 1) updateConversion(conv.id, 'qty', conv.qty - 1);
+      break;
+    }
+    case 'inc-img-qty': {
+      const state = getState();
+      const newImages = state.images.map(img => img.id === btn.dataset.id ? { ...img, quantity: (img.quantity || 1) + 1 } : img);
+      onImagesUpdated(newImages);
+      break;
+    }
+    case 'dec-img-qty': {
+      const state = getState();
+      const newImages = state.images.map(img => img.id === btn.dataset.id ? { ...img, quantity: Math.max(1, (img.quantity || 1) - 1) } : img);
+      onImagesUpdated(newImages);
+      break;
+    }
   }
 }
 
@@ -193,12 +252,23 @@ function handleInput(e) {
     onImagesUpdated(newImages);
     return;
   }
+  
+  if (e.target.dataset.action === 'conversion-type') {
+    updateConversion(e.target.dataset.id, 'type', e.target.value);
+    return;
+  }
+
+  if (e.target.dataset.action === 'conversion-qty') {
+    const val = parseInt(e.target.value, 10);
+    updateConversion(e.target.dataset.id, 'qty', isNaN(val) || val < 1 ? 1 : val);
+    return;
+  }
 
   if (!field) return;
 
   if (field === 'quantity') {
     const val = parseInt(e.target.value, 10);
-    onInputChange(field, isNaN(val) ? 1 : val);
+    onInputChange(field, isNaN(val) || val < 1 ? 1 : val);
   } else {
     onInputChange(field, e.target.value);
   }
@@ -216,6 +286,50 @@ function updateDOM(container, state) {
   const quantityField = container.querySelector('#quantity-field');
   if (metersFields) metersFields.style.display = (state.format === 'Meters' || state.inputMode === 'image') ? 'block' : 'none';
   if (quantityField) quantityField.style.display = (state.format !== 'Meters' && state.inputMode !== 'image') ? 'block' : 'none';
+
+  // Update format badge
+  const badgeName = container.querySelector('#format-badge-name');
+  const badgeDims = container.querySelector('#format-badge-dims');
+  if (badgeName && badgeDims) {
+    if (state.format === 'A4') {
+      badgeName.textContent = 'A4 Sheet';
+      badgeDims.textContent = '(11" x 8")';
+    } else if (state.format === 'A3') {
+      badgeName.textContent = 'A3 Sheet';
+      badgeDims.textContent = '(11" x 16")';
+    } else if (state.format === 'A2') {
+      badgeName.textContent = 'A2 Sheet';
+      badgeDims.textContent = '(22.5" x 16.5")';
+    }
+  }
+
+  // Update conversion UI
+  const convContainer = container.querySelector('#conversions-container');
+  if (convContainer) {
+    if (!state.conversions || state.conversions.length === 0) {
+      convContainer.innerHTML = '<div style="font-size: 13px; color: var(--text-muted); font-style: italic;">No conversions added.</div>';
+    } else {
+      convContainer.innerHTML = state.conversions.map(c => `
+        <div style="display: flex; gap: 12px; align-items: center; background: #f9fafb; padding: 12px; border: 1px solid var(--border-color); border-radius: 8px;">
+          <div style="flex: 1;">
+            <select class="input-field" data-action="conversion-type" data-id="${c.id}">
+              <option value="Puff" ${c.type === 'Puff' ? 'selected' : ''}>Puff</option>
+              <option value="Embroidery" ${c.type === 'Embroidery' ? 'selected' : ''}>Embroidery</option>
+              <option value="Leather" ${c.type === 'Leather' ? 'selected' : ''}>Leather</option>
+            </select>
+          </div>
+          <div style="width: 100px;">
+            <div class="number-input-group" style="height: 44px;">
+              <button class="btn-spin" data-action="dec-conv" data-id="${c.id}" style="width: 32px;">-</button>
+              <input type="number" class="input-field" min="1" value="${c.qty}" data-action="conversion-qty" data-id="${c.id}" style="padding: 0;" />
+              <button class="btn-spin" data-action="inc-conv" data-id="${c.id}" style="width: 32px;">+</button>
+            </div>
+          </div>
+          <button class="btn btn-icon" data-action="remove-conversion" data-id="${c.id}" style="width: 44px; height: 44px; min-height: 44px; padding: 0; display: flex; align-items: center; justify-content: center; color: #ef4444; border: 1px solid #fecaca; background: #fef2f2; border-radius: 8px; flex-shrink: 0;">✕</button>
+        </div>
+      `).join('');
+    }
+  }
 
   // Handle Length input overrides
   const lengthInput = container.querySelector('#input-length');
@@ -249,7 +363,11 @@ function updateDOM(container, state) {
             ${img.isValid ? `
             <div style="margin-top: 4px; display: flex; align-items: center; gap: 8px;">
               <label style="font-size: 11px; color: var(--text-muted);">Qty:</label>
-              <input type="number" min="1" value="${img.quantity || 1}" data-action="image-qty" data-id="${img.id}" style="width: 50px; padding: 2px 4px; font-size: 11px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-input); color: var(--text-primary);" />
+              <div class="number-input-group" style="height: 28px;">
+                <button class="btn-spin" data-action="dec-img-qty" data-id="${img.id}" style="width: 24px; font-size: 14px;">-</button>
+                <input type="number" min="1" value="${img.quantity || 1}" data-action="image-qty" data-id="${img.id}" style="width: 40px; text-align: center; border: none; background: transparent; font-size: 11px; color: var(--text-primary);" />
+                <button class="btn-spin" data-action="inc-img-qty" data-id="${img.id}" style="width: 24px; font-size: 14px;">+</button>
+              </div>
             </div>
             ` : ''}
           </div>

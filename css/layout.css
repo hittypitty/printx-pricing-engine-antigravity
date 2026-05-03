@@ -100,15 +100,73 @@
 
 /* Responsive */
 @media (max-width: 768px) {
-  .app-wrapper { padding: var(--space-lg); }
-  .app-grid { grid-template-columns: 1fr; }
+  .app-wrapper { 
+    padding: 12px 16px;
+    width: 100%;
+    max-width: 100%;
+    margin: 0 auto;
+    box-sizing: border-box;
+  }
+  .app-grid { 
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .app-col {
+    gap: 16px;
+    width: 100%;
+  }
   .header-inner {
     flex-direction: column;
-    gap: var(--space-lg);
+    align-items: center;
+    gap: 8px; /* Reduced from 12px */
     text-align: center;
+    width: 100%;
   }
-  .header-brand { flex-direction: column; }
-  .header-text { flex-direction: column; gap: var(--space-xs); }
+  .header-brand { 
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+  }
+  .header-text { 
+    flex-direction: column; 
+    gap: var(--space-xs); 
+  }
   .header-separator { display: none; }
-  .header-actions { align-items: center; }
+  .header-actions { 
+    width: 100%; 
+    display: flex;
+    margin-top: 12px;
+  }
+  .header-actions > div {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+  }
+  .header-actions .btn {
+    height: 44px;
+    min-height: 44px;
+    font-size: 14px;
+    border-radius: 10px;
+    width: auto;
+  }
+  .header-actions .btn-admin-toggle {
+    width: 44px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .header-actions .btn-whatsapp {
+    flex: 1;
+    max-width: none;
+    justify-content: center;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
 }
