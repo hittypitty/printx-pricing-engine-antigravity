@@ -14,10 +14,8 @@ export function init(container) {
 
 function render(container) {
   const { branding } = getConfig();
-  const logoSrc = branding.logoUrl || '';
-  const logoHTML = logoSrc
-    ? `<img src="${logoSrc}" alt="Company Logo" class="header-logo" id="header-logo" />`
-    : `<div class="header-logo-placeholder" id="header-logo">📐</div>`;
+  const logoSrc = branding.logoUrl || '/assets/images/logo.png';
+  const logoHTML = `<img src="${logoSrc}" alt="Company Logo" class="header-logo" id="header-logo" />`;
 
   const whatsappLink = branding.whatsappLink || 'https://wa.me/919876543210';
 
@@ -58,17 +56,16 @@ function updateLogo(container) {
   const logoEl = container.querySelector('#header-logo');
   if (!logoEl) return;
 
-  if (branding.logoUrl) {
-    if (logoEl.tagName === 'IMG') {
-      logoEl.src = branding.logoUrl;
-    } else {
-      const img = document.createElement('img');
-      img.src = branding.logoUrl;
-      img.alt = 'Company Logo';
-      img.className = 'header-logo';
-      img.id = 'header-logo';
-      logoEl.replaceWith(img);
-    }
+  const logoSrc = branding.logoUrl || '/assets/images/logo.png';
+  if (logoEl.tagName === 'IMG') {
+    logoEl.src = logoSrc;
+  } else {
+    const img = document.createElement('img');
+    img.src = logoSrc;
+    img.alt = 'Company Logo';
+    img.className = 'header-logo';
+    img.id = 'header-logo';
+    logoEl.replaceWith(img);
   }
 }
 
