@@ -78,6 +78,7 @@ export function recalculate() {
       isValid: true, validationError: null,
       ...dims,
       printCost: pricing.printCost,
+      effectiveRate: pricing.effectiveRate,
       rateApplied: pricing.rateApplied,
       methodLabel: pricing.methodLabel,
       printBreakdown: pricing.breakdown,
@@ -115,6 +116,7 @@ export function recalculate() {
       validationError: validation.error,
       // Reset all computed outputs to zero — never show stale calculations
       printCost: 0,
+      effectiveRate: '0.00',
       rateApplied: 0,
       methodLabel: '',
       printBreakdown: '',
@@ -175,6 +177,7 @@ export function recalculate() {
   update({
     ...dims,
     printCost: pricing.printCost,
+    effectiveRate: pricing.effectiveRate,
     rateApplied: pricing.rateApplied,
     methodLabel: pricing.methodLabel,
     printBreakdown: pricing.breakdown,

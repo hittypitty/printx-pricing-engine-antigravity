@@ -32,8 +32,10 @@ export function calculatePrintCost(dims) {
   if (isSheetFormat) {
     const fmt = formats.FORMATS[format];
     const printCost = fmt.fixedPrice * quantity;
+    const effectiveRate = totalSqInches > 0 ? (printCost / totalSqInches).toFixed(2) : '0.00';
     return {
       printCost,
+      effectiveRate,
       rateApplied: fmt.fixedPrice,
       methodLabel: 'Fixed Sheet Price',
       breakdown: `${quantity} pcs × ₹${fmt.fixedPrice} / pc`,
@@ -45,9 +47,11 @@ export function calculatePrintCost(dims) {
   const slab = slabs.find(s => totalMeters >= s.min && totalMeters <= s.max);
   const rate = slab ? slab.rate : slabs[slabs.length - 1].rate;
   const printCost = Math.ceil(totalMeters * rate);
+  const effectiveRate = totalSqInches > 0 ? (printCost / totalSqInches).toFixed(2) : '0.00';
 
   return {
     printCost,
+    effectiveRate,
     rateApplied: rate,
     methodLabel: 'Running Meter',
     breakdown: `${totalMeters.toFixed(2)} meters × ₹${rate} / m`,

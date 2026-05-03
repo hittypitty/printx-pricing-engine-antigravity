@@ -24,9 +24,20 @@ export function init() {
 
   document.addEventListener('click', (e) => {
     if (e.target.closest('#btn-admin-toggle')) {
-      toggle(panel, overlay);
+      e.preventDefault();
+      e.stopPropagation();
+
+      openAdminPanel(panel, overlay);
+      return;
     }
-    if (e.target.closest('#admin-overlay') || e.target.closest('#btn-admin-close')) {
+    if (e.target.closest('#btn-admin-close')) {
+      close(panel, overlay);
+    }
+  });
+
+  // Close overlay on direct mousedown to prevent drag-highlight from triggering a close
+  overlay.addEventListener('mousedown', (e) => {
+    if (e.target === overlay) {
       close(panel, overlay);
     }
   });
@@ -37,11 +48,95 @@ export function init() {
   });
 }
 
-function toggle(panel, overlay) {
+function checkAdminSession() {
+  const auth = sessionStorage.getItem('isAdminAuthenticated') === 'true';
+  if (!auth) return false;
+
+  const loginTime = parseInt(sessionStorage.getItem('adminLoginTime') || '0', 10);
+  const now = Date.now();
+  const fifteenMins = 15 * 60 * 1000;
+
+  if (now - loginTime > fifteenMins) {
+    sessionStorage.removeItem('isAdminAuthenticated');
+    sessionStorage.removeItem('adminLoginTime');
+    alert('Session expired. Please login again.');
+    return false;
+  }
+  return true;
+}
+
+function openAdminPanel(panel, overlay) {
+  // STRICT GUARD: Prevent direct manual access
+  if (!checkAdminSession()) {
+    showPasswordPrompt(panel, overlay);
+    return;
+  }
+
+  // If authenticated and valid, toggle
   isOpen = !isOpen;
   panel.classList.toggle('open', isOpen);
   overlay.classList.toggle('open', isOpen);
   if (isOpen) renderPanel(panel);
+}
+
+function showPasswordPrompt(panel, overlay) {
+  const promptOverlay = document.createElement('div');
+  promptOverlay.style.position = 'fixed';
+  promptOverlay.style.inset = '0';
+  promptOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+  promptOverlay.style.zIndex = '99999';
+  promptOverlay.style.display = 'flex';
+  promptOverlay.style.alignItems = 'center';
+  promptOverlay.style.justifyContent = 'center';
+
+  const promptModal = document.createElement('div');
+  promptModal.style.background = 'white';
+  promptModal.style.padding = '24px';
+  promptModal.style.borderRadius = '12px';
+  promptModal.style.boxShadow = '0 4px 20px rgba(0,0,0,0.15)';
+  promptModal.style.width = '300px';
+  promptModal.style.display = 'flex';
+  promptModal.style.flexDirection = 'column';
+  promptModal.style.gap = '16px';
+
+  promptModal.innerHTML = `
+    <h3 style="margin: 0; font-size: 18px; color: var(--text-primary);">Admin Access</h3>
+    <input type="password" id="admin-pass-input" placeholder="Enter password" style="padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 14px;" />
+    <div id="admin-pass-error" style="color: #ef4444; font-size: 13px; display: none;">Incorrect password.</div>
+    <div style="display: flex; justify-content: flex-end; gap: 8px;">
+      <button id="admin-pass-cancel" class="btn" style="background: var(--bg-input); color: var(--text-secondary);">Cancel</button>
+      <button id="admin-pass-submit" class="btn btn-primary">Login</button>
+    </div>
+  `;
+
+  promptOverlay.appendChild(promptModal);
+  document.body.appendChild(promptOverlay);
+
+  const input = promptModal.querySelector('#admin-pass-input');
+  const err = promptModal.querySelector('#admin-pass-error');
+  const cancelBtn = promptModal.querySelector('#admin-pass-cancel');
+  const submitBtn = promptModal.querySelector('#admin-pass-submit');
+
+  const cleanup = () => document.body.removeChild(promptOverlay);
+
+  const submit = () => {
+    if (input.value === '301307') {
+      sessionStorage.setItem('isAdminAuthenticated', 'true');
+      sessionStorage.setItem('adminLoginTime', Date.now().toString());
+      cleanup();
+      openAdminPanel(panel, overlay);
+    } else {
+      err.style.display = 'block';
+      input.value = '';
+      input.focus();
+    }
+  };
+
+  cancelBtn.onclick = cleanup;
+  submitBtn.onclick = submit;
+  input.onkeydown = (ev) => { if (ev.key === 'Enter') submit(); };
+
+  setTimeout(() => input.focus(), 50);
 }
 
 function close(panel, overlay) {
@@ -168,6 +263,7 @@ function renderPanel(panel) {
     <div class="admin-footer">
       <button class="btn btn-primary" id="btn-admin-save">💾 Save Changes</button>
       <button class="btn btn-outline btn-danger-outline" id="btn-admin-reset">↩ Reset Defaults</button>
+      <button class="btn btn-outline" id="btn-admin-logout" style="margin-left: auto;">🚪 Logout</button>
     </div>
   `;
 
@@ -184,6 +280,12 @@ function bindEvents(panel) {
       resetConfig();
       recalculate();
     }
+  });
+
+  panel.querySelector('#btn-admin-logout')?.addEventListener('click', () => {
+    sessionStorage.removeItem('isAdminAuthenticated');
+    sessionStorage.removeItem('adminLoginTime');
+    close(panel, document.getElementById('admin-overlay'));
   });
 
   panel.querySelector('#admin-logo-input')?.addEventListener('change', (e) => {

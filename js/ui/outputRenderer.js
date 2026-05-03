@@ -14,7 +14,7 @@ function buildHTML(state) {
   const deliveryCost = state.shippingCost + state.packagingCost;
   const deliveryText = state.deliveryMethod === 'pickup' ? 'Free' : '₹' + deliveryCost;
   const deliveryKpiSub = state.deliveryMethod === 'pickup' ? 'Office Pickup' : `ETA: ${state.eta} (${state.countedWeight} kg)`;
-  const effectiveRate = state.totalSqInches > 0 ? (state.printCost / state.totalSqInches).toFixed(2) : '0.00';
+  const effectiveRate = state.effectiveRate || '0.00';
 
   return `
     <div class="card">
@@ -80,7 +80,7 @@ function updateDOM(container, state) {
   const deliveryCost = state.shippingCost + state.packagingCost;
   const deliveryText = state.deliveryMethod === 'pickup' ? 'Free' : '₹' + deliveryCost;
   const deliveryKpiSub = state.deliveryMethod === 'pickup' ? 'Office Pickup' : `ETA: ${state.eta} (${state.countedWeight} kg)`;
-  const effectiveRate = state.totalSqInches > 0 ? (state.printCost / state.totalSqInches).toFixed(2) : '0.00';
+  const effectiveRate = state.effectiveRate || '0.00';
 
   // KPI blocks
   const metricLabel = container.querySelector('#kpi-metric-label');
