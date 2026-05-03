@@ -1,0 +1,27 @@
+/* ========================================
+   Quote Section — Light theme
+   ======================================== */
+
+.quote-actions {
+  margin-bottom: var(--space-lg);
+}
+
+.quote-textarea {
+  width: 100%;
+  min-height: 260px;
+  padding: var(--space-lg);
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  line-height: 1.7;
+  resize: vertical;
+  transition: border-color var(--transition-fast);
+}
+
+.quote-textarea:focus {
+  border-color: var(--accent-primary);
+  background: #fff;
+}

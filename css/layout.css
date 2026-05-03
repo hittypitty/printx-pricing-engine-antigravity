@@ -1,0 +1,114 @@
+/* ========================================
+   Layout — PrintX Reference Match
+   ======================================== */
+
+.app-wrapper {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: var(--space-2xl) var(--space-xl);
+}
+
+.app-header {
+  margin-bottom: var(--space-2xl);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.app-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-xl);
+  align-items: start;
+}
+
+.app-col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+}
+
+/* Header — NO card border, open layout like reference */
+.header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-lg) 0;
+}
+
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+}
+
+.header-logo {
+  height: 52px;
+  width: auto;
+  object-fit: contain;
+}
+
+.header-logo-placeholder {
+  width: 52px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  background: var(--bg-input);
+  border-radius: var(--radius-md);
+  border: 1px dashed var(--border-color);
+}
+
+.header-text {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.header-title {
+  font-size: var(--fs-2xl);
+  font-weight: 900;
+  color: var(--text-primary);
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.header-separator {
+  width: 2px;
+  height: 28px;
+  background: var(--border-color);
+}
+
+.header-subtitle {
+  font-size: var(--fs-base);
+  color: var(--text-muted);
+  font-weight: var(--fw-medium);
+  letter-spacing: 0.08em;
+}
+
+.header-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.header-phone {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  font-weight: var(--fw-medium);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .app-wrapper { padding: var(--space-lg); }
+  .app-grid { grid-template-columns: 1fr; }
+  .header-inner {
+    flex-direction: column;
+    gap: var(--space-lg);
+    text-align: center;
+  }
+  .header-brand { flex-direction: column; }
+  .header-text { flex-direction: column; gap: var(--space-xs); }
+  .header-separator { display: none; }
+  .header-actions { align-items: center; }
+}

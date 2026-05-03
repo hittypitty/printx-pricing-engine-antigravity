@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="DTF Pricing Engine — Calculate print costs, shipping, and generate client quotes instantly." />
+  <title>DTF Pricing Engine</title>
+
+  <!-- CSS Design System -->
+  <link rel="stylesheet" href="css/variables.css" />
+  <link rel="stylesheet" href="css/base.css" />
+  <link rel="stylesheet" href="css/layout.css" />
+  <link rel="stylesheet" href="css/components.css" />
+  <link rel="stylesheet" href="css/quote.css" />
+  <link rel="stylesheet" href="css/admin.css" />
+
+  <!-- App Entry -->
+  <script type="module" src="js/main.js"></script>
+</head>
+<body>
+  <div class="app-wrapper">
+    <!-- Global Header -->
+    <header class="app-header" id="app-header"></header>
+
+    <!-- 2-Column Grid -->
+    <div class="app-grid">
+      <!-- Left Column: Inputs -->
+      <div class="app-col" id="app-inputs"></div>
+
+      <!-- Right Column: Outputs + Quote -->
+      <div class="app-col">
+        <div id="app-outputs"></div>
+        <div id="app-quote"></div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
