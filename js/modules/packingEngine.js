@@ -10,30 +10,41 @@ export const PRINTABLE_WIDTH = 22.5;
 export const SHEET_LENGTH = 39;
 
 /**
- * Calculate grid packing for a single image type.
- * Tries both orientations, picks the one that fits more copies.
+ * Calculate grid packing for a single image type on a CONTINUOUS roll.
+ * Tries both orientations, picks the one that consumes the LEAST running length.
  *
- * Returns { fitPerSheet, colsAcross, rowsDown, cellW, cellH }
- * so we can compute actual consumed length on partial sheets.
+ * Returns { colsAcross, rowsNeeded, lengthConsumed, cellW, cellH }
  */
-function bestGridLayout(imgWidth, imgLength) {
+function bestContinuousLayout(imgWidth, imgLength, qty) {
   const w = imgWidth + MARGIN_INCHES;
   const h = imgLength + MARGIN_INCHES;
 
-  // Orientation 1: width along roll, length along sheet
+  // Orientation 1: width along roll
   const cols1 = Math.floor(PRINTABLE_WIDTH / w);
-  const rows1 = Math.floor(SHEET_LENGTH / h);
-  const fit1 = cols1 * rows1;
+  let length1 = Infinity;
+  if (cols1 > 0) {
+    const rows1 = Math.ceil(qty / cols1);
+    length1 = rows1 * h;
+  }
 
   // Orientation 2: rotated
   const cols2 = Math.floor(PRINTABLE_WIDTH / h);
-  const rows2 = Math.floor(SHEET_LENGTH / w);
-  const fit2 = cols2 * rows2;
+  let length2 = Infinity;
+  if (cols2 > 0) {
+    const rows2 = Math.ceil(qty / cols2);
+    length2 = rows2 * w;
+  }
 
-  if (fit1 >= fit2) {
-    return { fitPerSheet: fit1, colsAcross: cols1, rowsDown: rows1, cellW: w, cellH: h };
+  if (length1 === Infinity && length2 === Infinity) {
+    // Image is too large for the roll width in either orientation!
+    // Fallback: assume it takes its larger dimension as length, and we can only fit 1 across
+    return { colsAcross: 1, rowsNeeded: qty, lengthConsumed: qty * Math.max(w, h), cellW: Math.min(w, h), cellH: Math.max(w, h) };
+  }
+
+  if (length1 <= length2) {
+    return { colsAcross: cols1, rowsNeeded: Math.ceil(qty / cols1), lengthConsumed: length1, cellW: w, cellH: h };
   } else {
-    return { fitPerSheet: fit2, colsAcross: cols2, rowsDown: rows2, cellW: h, cellH: w };
+    return { colsAcross: cols2, rowsNeeded: Math.ceil(qty / cols2), lengthConsumed: length2, cellW: h, cellH: w };
   }
 }
 
@@ -62,25 +73,9 @@ export function calculatePackedDimensions(images) {
 
   validImages.forEach(img => {
     const qty = img.quantity || 1;
-    const grid = bestGridLayout(img.width, img.length);
+    const layout = bestContinuousLayout(img.width, img.length, qty);
 
-    // Safety: if nothing fits (image too large), treat as 1 per sheet
-    const effectiveFit = grid.fitPerSheet > 0 ? grid.fitPerSheet : 1;
-    const fullSheets = Math.floor(qty / effectiveFit);
-    const remainder = qty % effectiveFit;
-
-    // Full sheets contribute full 39" each
-    let imgLength = fullSheets * SHEET_LENGTH;
-
-    // Last partial sheet: calculate actual rows consumed
-    if (remainder > 0 && grid.colsAcross > 0) {
-      const rowsUsed = Math.ceil(remainder / grid.colsAcross);
-      imgLength += rowsUsed * grid.cellH;
-    } else if (remainder > 0) {
-      // Fallback: if colsAcross is somehow 0, count each as a full sheet
-      imgLength += remainder * SHEET_LENGTH;
-    }
-
+    let imgLength = layout.lengthConsumed;
     totalLength += imgLength;
 
     if (img.width > totalWidth) {
@@ -92,9 +87,8 @@ export function calculatePackedDimensions(images) {
       width: img.width,
       length: img.length,
       quantity: qty,
-      fitPerSheet: effectiveFit,
-      fullSheets,
-      remainder,
+      colsAcross: layout.colsAcross,
+      rowsNeeded: layout.rowsNeeded,
       totalLengthInches: Number(imgLength.toFixed(2)),
     });
   });

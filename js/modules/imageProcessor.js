@@ -3,7 +3,7 @@
  * Reads PNG files, calculates dimensions in inches (300 DPI), applies orientation rules, and validates constraints.
  */
 
-export const DPI = 72;
+export const DPI = 300;
 export const MAX_PRINTABLE_WIDTH_INCHES = 22.5;
 
 /**

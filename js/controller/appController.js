@@ -19,14 +19,30 @@ import { update, getState } from '../state/store.js';
 export function recalculate() {
   const s = getState();
 
-  // ========== IMAGE MODE — DIRECT PATH (bypasses all format/validation logic) ==========
-  if (s.inputMode === 'image' && s.images && s.images.length > 0) {
+  // ========== AUTO-PACKING MODE (Image Upload or Manual Sizes) ==========
+  const isImageMode = s.inputMode === 'image' && s.images && s.images.length > 0;
+  const isManualSizeMode = s.inputMode === 'manual-size' && s.manualSizes && s.manualSizes.length > 0;
+  
+  if (isImageMode || isManualSizeMode) {
+    if (isManualSizeMode && s.manualSizes.some(sz => Number(sz.width) > 24 || Number(sz.width) <= 0 || Number(sz.height) <= 0)) {
+      update({
+        isValid: false,
+        validationError: 'Invalid size. Width must be ≤ 24". Dimensions must be > 0.',
+        printCost: 0, rateApplied: 0, methodLabel: '', printBreakdown: '',
+        conversionCost: 0, conversionBreakdown: '', packagingCost: 0,
+        shippingCost: 0, partnerName: '', countedWeight: 0, eta: '',
+        shippingBreakdown: '', allPartnerResults: [], recommendedPartner: null,
+        finalTotal: 0, quoteText: '',
+      });
+      return;
+    }
+
     const lengthInches = s.computedImageLength;
 
     if (!lengthInches || lengthInches <= 0) {
       update({
         isValid: false,
-        validationError: 'No valid images to calculate. Please upload valid PNG files.',
+        validationError: 'Could not calculate length. Please check your inputs.',
         printCost: 0, rateApplied: 0, methodLabel: '', printBreakdown: '',
         conversionCost: 0, conversionBreakdown: '', packagingCost: 0,
         shippingCost: 0, partnerName: '', countedWeight: 0, eta: '',
@@ -231,10 +247,6 @@ export function removeConversion(id) {
   recalculate();
 }
 
-/**
- * Handle image uploads for V2. Computes packed length and toggles modes.
- * @param {Array} newImages - Array of validated image objects
- */
 export function onImagesUpdated(newImages) {
   if (newImages && newImages.length > 0) {
     const packed = calculatePackedDimensions(newImages);
@@ -248,6 +260,81 @@ export function onImagesUpdated(newImages) {
   } else {
     update({ 
       images: [], 
+      inputMode: 'manual',
+      designCount: 0
+    });
+  }
+  recalculate();
+}
+
+export function setDesignTab(tab) {
+  update({ designTab: tab });
+  // If switching tabs, we should apply the correct input mode if there's data
+  const s = getState();
+  if (tab === 'image') {
+    onImagesUpdated(s.images);
+  } else if (tab === 'manual-size') {
+    onManualSizesUpdated(s.manualSizes);
+  }
+}
+
+export function addManualSize() {
+  const s = getState();
+  const manualSizes = [...s.manualSizes, { id: Date.now().toString(), width: '', height: '', qty: 1 }];
+  update({ manualSizes });
+  // Don't auto-recalculate if empty, just wait for user to type
+}
+
+export function updateManualSize(id, field, value) {
+  const s = getState();
+  const manualSizes = s.manualSizes.map(m => m.id === id ? { ...m, [field]: value } : m);
+  onManualSizesUpdated(manualSizes);
+}
+
+export function removeManualSize(id) {
+  const s = getState();
+  const manualSizes = s.manualSizes.filter(m => m.id !== id);
+  onManualSizesUpdated(manualSizes);
+}
+
+function onManualSizesUpdated(newSizes) {
+  if (newSizes && newSizes.length > 0) {
+    const pseudoImages = newSizes.map((s, i) => ({
+      isValid: true,
+      width: Number(s.width) || 0,
+      length: Number(s.height) || 0,
+      quantity: Number(s.qty) || 1,
+      name: `Size ${i + 1}`
+    }));
+    
+    // Check if any size is completely invalid, but only block packing if they entered something
+    let hasInvalid = false;
+    let allEmpty = true;
+    pseudoImages.forEach(img => {
+      if (img.width > 0 || img.length > 0) allEmpty = false;
+      if (img.width > 24 || img.width < 0 || img.length < 0) hasInvalid = true;
+    });
+
+    if (allEmpty) {
+      update({ manualSizes: newSizes, inputMode: 'manual', designCount: 0 });
+    } else if (hasInvalid) {
+      update({ manualSizes: newSizes, inputMode: 'manual-size', computedImageLength: 0 });
+    } else {
+      // Filter out incomplete sizes for calculation, but keep them in UI state
+      const validToPack = pseudoImages.filter(img => img.width > 0 && img.length > 0);
+      const packed = calculatePackedDimensions(validToPack);
+      
+      update({ 
+        manualSizes: newSizes, 
+        inputMode: 'manual-size',
+        format: 'Meters',
+        computedImageLength: packed.totalLength,
+        designCount: validToPack.reduce((sum, img) => sum + img.quantity, 0)
+      });
+    }
+  } else {
+    update({ 
+      manualSizes: [], 
       inputMode: 'manual',
       designCount: 0
     });

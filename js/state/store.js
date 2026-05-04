@@ -5,8 +5,10 @@
 
 const state = {
   // --- User Inputs ---
-  inputMode: 'manual', // 'manual' | 'image'
+  designTab: 'image', // 'image' | 'manual-size'
+  inputMode: 'manual', // 'manual' | 'image' | 'manual-size'
   images: [], // Array of uploaded image objects
+  manualSizes: [], // Array of { id, width, height, qty }
   format: 'A4',
   rawLength: '',
   quantity: 1,

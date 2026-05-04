@@ -4,7 +4,7 @@
  */
 
 import { subscribe, getState } from '../state/store.js';
-import { onInputChange, onImagesUpdated, addConversion, updateConversion, removeConversion } from '../controller/appController.js';
+import { onInputChange, onImagesUpdated, addConversion, updateConversion, removeConversion, setDesignTab, addManualSize, updateManualSize, removeManualSize } from '../controller/appController.js';
 import { processImage } from '../modules/imageProcessor.js';
 
 export function init(container) {
@@ -16,6 +16,30 @@ export function init(container) {
   container.addEventListener('input', handleInput);
   
   container.addEventListener('change', async (e) => {
+    if (e.target.dataset.action === 'manual-size-dim') {
+      const val = e.target.value.toLowerCase().trim();
+      let num = parseFloat(val);
+      
+      if (!isNaN(num)) {
+        if (val.endsWith('mm')) {
+          num = num / 25.4;
+        } else if (val.endsWith('cm')) {
+          num = num / 2.54;
+        } else if (val.endsWith('m')) {
+          num = num * 39.37;
+        }
+        
+        // Round to 2 decimal places for neatness
+        num = Number(num.toFixed(2));
+      } else {
+        num = ''; // Reset if invalid
+      }
+      
+      const fieldType = e.target.dataset.fieldtype;
+      updateManualSize(e.target.dataset.id, fieldType, num);
+      return;
+    }
+
     if (e.target.id === 'image-upload-input') {
       const files = Array.from(e.target.files);
       if (files.length === 0) return;
@@ -38,6 +62,7 @@ export function init(container) {
 }
 
 function buildHTML(state) {
+  const isImageTab = state.designTab === 'image';
   return `
     <div class="card">
       <div class="card-header">
@@ -47,15 +72,27 @@ function buildHTML(state) {
             <polyline points="17 8 12 3 7 8"></polyline>
             <line x1="12" y1="3" x2="12" y2="15"></line>
           </svg>
-          Upload Design (Optional)
+          Design Input
         </h2>
       </div>
       <div class="card-body">
-        <label class="btn btn-outline" style="width: 100%; display: flex; justify-content: center; margin-bottom: var(--space-md); cursor: pointer;">
-          📁 Select PNG Images
-          <input type="file" id="image-upload-input" accept="image/png" multiple hidden />
-        </label>
-        <div id="image-preview-container" style="display: flex; flex-direction: column; gap: 8px;"></div>
+        <div class="btn-group" style="margin-bottom: var(--space-lg);">
+          <button class="btn btn-select ${isImageTab ? 'active' : ''}" data-action="set-design-tab" data-value="image" id="tab-image">🖼 Upload Images</button>
+          <button class="btn btn-select ${!isImageTab ? 'active' : ''}" data-action="set-design-tab" data-value="manual-size" id="tab-manual">📐 Manual Size Entry</button>
+        </div>
+
+        <div id="image-mode-container" style="display: ${isImageTab ? 'block' : 'none'};">
+          <label class="btn btn-outline" style="width: 100%; display: flex; justify-content: center; margin-bottom: var(--space-md); cursor: pointer;">
+            📁 Select PNG Images
+            <input type="file" id="image-upload-input" accept="image/png" multiple hidden />
+          </label>
+          <div id="image-preview-container" style="display: flex; flex-direction: column; gap: 8px;"></div>
+        </div>
+
+        <div id="manual-size-container" style="display: ${!isImageTab ? 'block' : 'none'};">
+          <div id="manual-sizes-list" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px;"></div>
+          <button class="btn-add-conversion" data-action="add-manual-size" style="width: 100%; text-align: center; justify-content: center;">+ Add Size</button>
+        </div>
       </div>
     </div>
     
@@ -84,7 +121,7 @@ function buildHTML(state) {
         
         <div style="height: 1px; background: var(--border-color); margin: var(--space-xl) 0;"></div>
 
-        <div class="field-group" id="meters-fields" style="display: ${state.format === 'Meters' || state.inputMode === 'image' ? 'block' : 'none'}; margin-bottom: 0;">
+        <div class="field-group" id="meters-fields" style="display: ${state.format === 'Meters' || state.inputMode === 'image' || state.inputMode === 'manual-size' ? 'block' : 'none'}; margin-bottom: 0;">
           <div class="input-row">
             <div class="input-col">
               <label class="field-label">WIDTH (INCHES)</label>
@@ -92,13 +129,13 @@ function buildHTML(state) {
             </div>
             <div class="input-col">
               <label class="field-label">LENGTH (INCHES)</label>
-              <input type="text" class="input-field" placeholder="e.g. 1m, 20+19 or 39x3" data-field="rawLength" value="${state.inputMode === 'image' && state.computedImageLength ? state.computedImageLength + '" (Auto)' : state.rawLength}" id="input-length" ${state.inputMode === 'image' ? 'disabled style="background: var(--bg-input); border-color: var(--border-color); color: var(--text-muted);"' : ''} />
+              <input type="text" class="input-field" placeholder="e.g. 1m, 20+19 or 39x3" data-field="rawLength" value="${(state.inputMode === 'image' || state.inputMode === 'manual-size') && state.computedImageLength ? state.computedImageLength + '" (Auto)' : state.rawLength}" id="input-length" ${state.inputMode === 'image' || state.inputMode === 'manual-size' ? 'disabled style="background: var(--bg-input); border-color: var(--border-color); color: var(--text-muted);"' : ''} />
               <div id="length-helper" style="font-size: 13px; color: var(--accent-pink); margin-top: 6px; font-weight: 500; display: none;"></div>
             </div>
           </div>
         </div>
 
-        <div class="field-group" id="quantity-field" style="display: ${state.format !== 'Meters' && state.inputMode !== 'image' ? 'block' : 'none'}; margin-bottom: 0;">
+        <div class="field-group" id="quantity-field" style="display: ${state.format !== 'Meters' && state.inputMode !== 'image' && state.inputMode !== 'manual-size' ? 'block' : 'none'}; margin-bottom: 0;">
           <div class="input-row">
             <div class="input-col">
               <label class="field-label">SELECTED FORMAT</label>
@@ -184,8 +221,11 @@ function handleClick(e) {
   const value = btn.dataset.value;
 
   switch (action) {
+    case 'set-design-tab':
+      setDesignTab(value);
+      break;
     case 'format':
-      if (getState().inputMode !== 'image') onInputChange('format', value);
+      if (getState().inputMode !== 'image' && getState().inputMode !== 'manual-size') onInputChange('format', value);
       break;
     case 'delivery':
       onInputChange('deliveryMethod', value);
@@ -237,6 +277,22 @@ function handleClick(e) {
       onImagesUpdated(newImages);
       break;
     }
+    case 'add-manual-size':
+      addManualSize();
+      break;
+    case 'remove-manual-size':
+      removeManualSize(btn.dataset.id);
+      break;
+    case 'inc-manual-qty': {
+      const ms = getState().manualSizes.find(c => c.id === btn.dataset.id);
+      if (ms) updateManualSize(ms.id, 'qty', ms.qty + 1);
+      break;
+    }
+    case 'dec-manual-qty': {
+      const ms = getState().manualSizes.find(c => c.id === btn.dataset.id);
+      if (ms && ms.qty > 1) updateManualSize(ms.id, 'qty', ms.qty - 1);
+      break;
+    }
   }
 }
 
@@ -250,6 +306,15 @@ function handleInput(e) {
     const state = getState();
     const newImages = state.images.map(img => img.id === id ? { ...img, quantity: qty } : img);
     onImagesUpdated(newImages);
+    return;
+  }
+  
+  // Handled on 'change' event to allow unit parsing (mm, cm) and prevent focus loss
+  // if (e.target.dataset.action === 'manual-size-dim') { ... }
+  
+  if (e.target.dataset.action === 'manual-size-qty') {
+    const val = parseInt(e.target.value, 10);
+    updateManualSize(e.target.dataset.id, 'qty', isNaN(val) || val < 1 ? 1 : val);
     return;
   }
   
@@ -275,17 +340,26 @@ function handleInput(e) {
 }
 
 function updateDOM(container, state) {
-  // Update format buttons and disable if image mode
+  // Update Design Tabs
+  container.querySelectorAll('#tab-image').forEach(btn => btn.classList.toggle('active', state.designTab === 'image'));
+  container.querySelectorAll('#tab-manual').forEach(btn => btn.classList.toggle('active', state.designTab === 'manual-size'));
+  
+  const imgModeContainer = container.querySelector('#image-mode-container');
+  const manualModeContainer = container.querySelector('#manual-size-container');
+  if (imgModeContainer) imgModeContainer.style.display = state.designTab === 'image' ? 'block' : 'none';
+  if (manualModeContainer) manualModeContainer.style.display = state.designTab === 'manual-size' ? 'block' : 'none';
+
+  // Update format buttons and disable if image mode or manual size mode
   container.querySelectorAll('#format-group .btn-select').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.value === state.format);
-    btn.disabled = state.inputMode === 'image';
+    btn.disabled = state.inputMode === 'image' || state.inputMode === 'manual-size';
   });
 
-  // Show/hide meters vs quantity fields based on format OR image mode
+  // Show/hide meters vs quantity fields based on format OR image/manual mode
   const metersFields = container.querySelector('#meters-fields');
   const quantityField = container.querySelector('#quantity-field');
-  if (metersFields) metersFields.style.display = (state.format === 'Meters' || state.inputMode === 'image') ? 'block' : 'none';
-  if (quantityField) quantityField.style.display = (state.format !== 'Meters' && state.inputMode !== 'image') ? 'block' : 'none';
+  if (metersFields) metersFields.style.display = (state.format === 'Meters' || state.inputMode === 'image' || state.inputMode === 'manual-size') ? 'block' : 'none';
+  if (quantityField) quantityField.style.display = (state.format !== 'Meters' && state.inputMode !== 'image' && state.inputMode !== 'manual-size') ? 'block' : 'none';
 
   // Update format badge
   const badgeName = container.querySelector('#format-badge-name');
@@ -334,7 +408,7 @@ function updateDOM(container, state) {
   // Handle Length input overrides
   const lengthInput = container.querySelector('#input-length');
   if (lengthInput) {
-    if (state.inputMode === 'image') {
+    if (state.inputMode === 'image' || state.inputMode === 'manual-size') {
       lengthInput.disabled = true;
       lengthInput.value = state.computedImageLength ? state.computedImageLength + '" (Auto)' : '';
       lengthInput.style.background = 'var(--bg-input)';
@@ -345,6 +419,33 @@ function updateDOM(container, state) {
       lengthInput.value = state.rawLength;
       lengthInput.style.background = '';
       lengthInput.style.color = '';
+    }
+  }
+
+  // Update manual sizes list
+  const manualList = container.querySelector('#manual-sizes-list');
+  if (manualList) {
+    if (!state.manualSizes || state.manualSizes.length === 0) {
+      manualList.innerHTML = '<div style="font-size: 13px; color: var(--text-muted); font-style: italic; text-align: center; padding: 12px 0;">No sizes added.</div>';
+    } else {
+      manualList.innerHTML = state.manualSizes.map(m => `
+        <div style="display: flex; gap: 8px; align-items: center; background: #f9fafb; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 8px;">
+          <input type="text" class="input-field" placeholder="W" value="${m.width}" data-action="manual-size-dim" data-fieldtype="width" data-id="${m.id}" style="width: 60px; padding: 6px;" />
+          <span style="color: var(--text-muted);">×</span>
+          <input type="text" class="input-field" placeholder="H" value="${m.height}" data-action="manual-size-dim" data-fieldtype="height" data-id="${m.id}" style="width: 60px; padding: 6px;" />
+          <span style="color: var(--text-muted); font-size: 12px; margin-left: 4px;">in</span>
+          
+          <div style="flex: 1;"></div>
+          
+          <div class="number-input-group" style="height: 36px; min-width: 90px;">
+            <button class="btn-spin" data-action="dec-manual-qty" data-id="${m.id}" style="width: 28px;">-</button>
+            <input type="number" class="input-field" min="1" value="${m.qty}" data-action="manual-size-qty" data-id="${m.id}" style="padding: 0; font-size: 13px;" />
+            <button class="btn-spin" data-action="inc-manual-qty" data-id="${m.id}" style="width: 28px;">+</button>
+          </div>
+          
+          <button class="btn btn-icon" data-action="remove-manual-size" data-id="${m.id}" style="width: 36px; height: 36px; min-height: 36px; padding: 0; display: flex; align-items: center; justify-content: center; color: #ef4444; border: 1px solid #fecaca; background: #fef2f2; border-radius: 8px; flex-shrink: 0;">✕</button>
+        </div>
+      `).join('');
     }
   }
 
@@ -398,13 +499,13 @@ function updateDOM(container, state) {
   // Length helper text
   const lengthHelper = container.querySelector('#length-helper');
   if (lengthHelper && lengthInput) {
-    if ((state.format === 'Meters' || state.inputMode === 'image') && state.length > 0 && state.isValid) {
+    if ((state.format === 'Meters' || state.inputMode === 'image' || state.inputMode === 'manual-size') && state.length > 0 && state.isValid) {
       lengthHelper.textContent = 'Total length: ' + state.length + '"';
       lengthHelper.style.display = 'block';
-      if (state.inputMode !== 'image') lengthInput.style.borderColor = 'var(--accent-pink)';
+      if (state.inputMode !== 'image' && state.inputMode !== 'manual-size') lengthInput.style.borderColor = 'var(--accent-pink)';
     } else {
       lengthHelper.style.display = 'none';
-      if (state.inputMode !== 'image') lengthInput.style.borderColor = '';
+      if (state.inputMode !== 'image' && state.inputMode !== 'manual-size') lengthInput.style.borderColor = '';
     }
   }
 
