@@ -4,7 +4,7 @@
  */
 
 import { subscribe, getState } from '../state/store.js';
-import { onInputChange, onImagesUpdated, addConversion, updateConversion, removeConversion, setDesignTab, addManualSize, updateManualSize, removeManualSize } from '../controller/appController.js';
+import { onInputChange, onImagesUpdated, addConversion, updateConversion, removeConversion, setDesignTab, addManualSize, updateManualSize, removeManualSize, overrideImageWidth } from '../controller/appController.js';
 import { processImage } from '../modules/imageProcessor.js';
 
 export function init(container) {
@@ -16,6 +16,12 @@ export function init(container) {
   container.addEventListener('input', handleInput);
   
   container.addEventListener('change', async (e) => {
+    if (e.target.dataset.action === 'override-width') {
+      const val = parseFloat(e.target.value);
+      overrideImageWidth(e.target.dataset.id, val);
+      return;
+    }
+
     if (e.target.dataset.action === 'manual-size-dim') {
       const val = e.target.value.toLowerCase().trim();
       let num = parseFloat(val);
@@ -283,6 +289,9 @@ function handleClick(e) {
     case 'remove-manual-size':
       removeManualSize(btn.dataset.id);
       break;
+    case 'override-width-clear':
+      overrideImageWidth(btn.dataset.id, null);
+      break;
     case 'inc-manual-qty': {
       const ms = getState().manualSizes.find(c => c.id === btn.dataset.id);
       if (ms) updateManualSize(ms.id, 'qty', ms.qty + 1);
@@ -458,10 +467,35 @@ function updateDOM(container, state) {
           <img src="${img.dataUrl}" style="width: 40px; height: 40px; object-fit: contain; border-radius: 4px; background: #000;" />
           <div style="flex: 1; min-width: 0;">
             <div style="font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${img.name}</div>
-            <div style="font-size: 11px; color: ${img.isValid ? 'var(--text-muted)' : 'var(--accent-pink)'};">
-              ${img.isValid ? `Detected: ${img.width}" × ${img.length}"` : `Invalid: ${img.error}`}
+            <div style="font-size: 11px; color: ${img.isValid && !img.hasWarning ? 'var(--text-muted)' : 'var(--accent-pink)'};">
+              ${img.isValid && !img.hasWarning && !img.isOverridden ? `Detected: ${img.width}" × ${img.length}"` : ''}
+              ${!img.isValid ? `Invalid: ${img.error}` : ''}
             </div>
-            ${img.isValid ? `
+            
+            ${img.dpiConfidence ? `
+              <div style="font-size: 10px; color: ${img.dpiConfidence === 'high' ? '#10b981' : '#f59e0b'}; margin-top: 2px; font-weight: 500;">
+                DPI: ${img.dpi} (${img.dpiConfidence === 'high' ? 'High' : 'Low'} confidence)
+              </div>
+            ` : ''}
+            
+            ${img.hasWarning ? `
+              <div style="margin-top: 4px; padding: 6px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 4px; font-size: 11px; color: #b45309;">
+                ${img.warning}
+                <div style="margin-top: 6px; display: flex; align-items: center; gap: 8px;">
+                  <label style="font-weight: 500;">Actual Width:</label>
+                  <input type="number" step="0.1" data-action="override-width" data-id="${img.id}" style="width: 70px; padding: 4px; border: 1px solid #fcd34d; border-radius: 4px;" placeholder="inches" />
+                </div>
+              </div>
+            ` : ''}
+
+            ${img.isOverridden ? `
+              <div style="margin-top: 4px; font-size: 11px; color: #10b981; font-weight: 500;">
+                Overridden Size: ${img.width}" × ${img.length}"
+                <button class="btn btn-icon" data-action="override-width-clear" data-id="${img.id}" style="padding: 0; margin-left: 4px; font-size: 10px; color: #ef4444; background: none; border: none; text-decoration: underline; display: inline; width: auto; min-height: 0; height: auto;">Reset</button>
+              </div>
+            ` : ''}
+
+            ${img.isValid && (!img.hasWarning || img.isOverridden) ? `
             <div style="margin-top: 4px; display: flex; align-items: center; gap: 8px;">
               <label style="font-size: 11px; color: var(--text-muted);">Qty:</label>
               <div class="number-input-group" style="height: 28px;">

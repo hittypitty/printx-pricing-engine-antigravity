@@ -249,14 +249,28 @@ export function removeConversion(id) {
 
 export function onImagesUpdated(newImages) {
   if (newImages && newImages.length > 0) {
-    const packed = calculatePackedDimensions(newImages);
-    update({ 
-      images: newImages, 
-      inputMode: 'image',
-      format: 'Meters',
-      computedImageLength: packed.totalLength,
-      designCount: newImages.length
-    });
+    // Only pack images that are completely valid and have no blocking warnings
+    const validToPack = newImages.filter(img => img.isValid && (!img.hasWarning || img.isOverridden));
+    
+    // If there are images but NONE are validToPack, it means they are all blocked by warnings or errors.
+    // We should show them in the UI but NOT calculate any packing/pricing for them yet.
+    if (validToPack.length > 0) {
+      const packed = calculatePackedDimensions(validToPack);
+      update({ 
+        images: newImages, 
+        inputMode: 'image',
+        format: 'Meters',
+        computedImageLength: packed.totalLength,
+        designCount: validToPack.reduce((sum, img) => sum + img.quantity, 0)
+      });
+    } else {
+      update({ 
+        images: newImages, 
+        inputMode: 'image',
+        computedImageLength: 0,
+        designCount: 0
+      });
+    }
   } else {
     update({ 
       images: [], 
@@ -265,6 +279,49 @@ export function onImagesUpdated(newImages) {
     });
   }
   recalculate();
+}
+
+export function overrideImageWidth(id, newWidthInches) {
+  const s = getState();
+  const newImages = s.images.map(img => {
+    if (img.id === id) {
+      // If width is cleared or invalid, revert to warning state
+      if (!newWidthInches || newWidthInches <= 0 || newWidthInches > 22.5) {
+        return {
+          ...img,
+          width: Number((img.originalWidthPx / img.dpi).toFixed(2)),
+          length: Number((img.originalHeightPx / img.dpi).toFixed(2)),
+          hasWarning: true,
+          isOverridden: false
+        };
+      }
+      
+      // Calculate proportional length
+      const ratio = img.originalHeightPx / img.originalWidthPx;
+      let newLengthInches = newWidthInches * ratio;
+      
+      // Account for orientation: if they swapped width/length by accident
+      // The packing engine handles rotation, but we should just scale whatever was considered "width" before.
+      // Actually, imageProcessor ensures width is the smaller side.
+      // So if they enter a new width, we just scale both sides.
+      const originalSmallerSide = Math.min(img.originalWidthPx, img.originalHeightPx);
+      const originalLargerSide = Math.max(img.originalWidthPx, img.originalHeightPx);
+      const trueRatio = originalLargerSide / originalSmallerSide;
+      
+      newLengthInches = newWidthInches * trueRatio;
+      
+      return {
+        ...img,
+        width: Number(newWidthInches.toFixed(2)),
+        length: Number(newLengthInches.toFixed(2)),
+        hasWarning: false, // warning resolved
+        isOverridden: true
+      };
+    }
+    return img;
+  });
+  
+  onImagesUpdated(newImages);
 }
 
 export function setDesignTab(tab) {
