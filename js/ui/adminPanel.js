@@ -163,6 +163,11 @@ function renderPanel(panel) {
 
 
         <div class="admin-field">
+          <label class="admin-label">Micro-Pricing (<1m, ₹/sq in)</label>
+          <input type="number" step="0.01" class="input-field" value="${config.pricing.MICRO_RATE_SQ_INCH}" data-section="pricing" data-key="MICRO_RATE_SQ_INCH" />
+        </div>
+
+        <div class="admin-field">
           <label class="admin-label">Conversion Cost (₹)</label>
           <input type="number" class="input-field" value="${config.pricing.CONVERSION_COST}" data-section="pricing" data-key="CONVERSION_COST" />
         </div>

@@ -42,7 +42,22 @@ export function calculatePrintCost(dims) {
     };
   }
 
-  // 2. Slab pricing
+  // 2. Micro-pricing (< 1 meter)
+  if (totalMeters < 1 && totalMeters > 0) {
+    const rate = pricing.MICRO_RATE_SQ_INCH || 0.5;
+    const printCost = Math.ceil(totalSqInches * rate);
+    const effectiveRate = rate.toFixed(2);
+    
+    return {
+      printCost,
+      effectiveRate,
+      rateApplied: rate,
+      methodLabel: 'Micro-Pricing (< 1m)',
+      breakdown: `${totalSqInches.toFixed(2)} sq in × ₹${rate} / sq in`,
+    };
+  }
+
+  // 3. Slab pricing (>= 1 meter)
   const slabs = pricing.METER_SLABS;
   const slab = slabs.find(s => totalMeters >= s.min && totalMeters <= s.max);
   const rate = slab ? slab.rate : slabs[slabs.length - 1].rate;

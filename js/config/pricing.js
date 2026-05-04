@@ -2,6 +2,7 @@
  * Pricing Constants
  */
 
+export const MICRO_RATE_SQ_INCH = 0.5; // ₹ per sq inch for lengths < 1 meter
 export const CONVERSION_COST = 50;     // ₹ per design
 export const DEFAULT_DESIGN_COUNT = 0; // Default 0 — no auto-add; V2 will derive from image count
 
