@@ -8,7 +8,7 @@ const state = {
   designTab: 'image', // 'image' | 'manual-size'
   inputMode: 'manual', // 'manual' | 'image' | 'manual-size'
   images: [], // Array of uploaded image objects
-  manualSizes: [], // Array of { id, width, height, qty }
+  manualSizes: [{ id: 'default-ms-1', width: '', height: '', qty: 1 }], // Start with one empty row
   format: 'A4',
   rawLength: '',
   quantity: 1,

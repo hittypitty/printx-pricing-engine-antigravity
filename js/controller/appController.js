@@ -350,7 +350,10 @@ export function updateManualSize(id, field, value) {
 
 export function removeManualSize(id) {
   const s = getState();
-  const manualSizes = s.manualSizes.filter(m => m.id !== id);
+  let manualSizes = s.manualSizes.filter(m => m.id !== id);
+  if (manualSizes.length === 0) {
+    manualSizes = [{ id: Date.now().toString(), width: '', height: '', qty: 1 }];
+  }
   onManualSizesUpdated(manualSizes);
 }
 
