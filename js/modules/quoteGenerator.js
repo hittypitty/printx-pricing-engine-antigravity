@@ -44,14 +44,14 @@ export function generateQuote(state) {
   }
 
   lines.push('');
-  lines.push(`💰 Final Total: ₹${finalTotal}`);
+  lines.push(`💰 *Final Total: ₹${finalTotal}*`);
   
   if (deliveryMethod !== 'pickup') {
     lines.push('');
-    lines.push('📦 Note:');
-    lines.push('Delivery charges are estimated based on current weight.');
-    lines.push('Final charges may vary after packaging.');
-    lines.push('Our team will confirm before dispatch.');
+    lines.push('📦 _Note:_');
+    lines.push('_Delivery charges are estimated based on current weight._');
+    lines.push('_Final charges may vary after packaging._');
+    lines.push('_Our team will confirm before dispatch._');
   }
 
   lines.push('');

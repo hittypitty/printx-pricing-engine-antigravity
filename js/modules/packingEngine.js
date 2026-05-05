@@ -16,6 +16,12 @@ export const SHEET_LENGTH = 39;
  * Returns { colsAcross, rowsNeeded, lengthConsumed, cellW, cellH }
  */
 function bestContinuousLayout(imgWidth, imgLength, qty) {
+  // Single copy: no margins needed — use exact image dimensions
+  if (qty === 1) {
+    return { colsAcross: 1, rowsNeeded: 1, lengthConsumed: imgLength, cellW: imgWidth, cellH: imgLength };
+  }
+
+  // Multiple copies: add margins for spacing between items
   const w = imgWidth + MARGIN_INCHES;
   const h = imgLength + MARGIN_INCHES;
 
@@ -37,7 +43,6 @@ function bestContinuousLayout(imgWidth, imgLength, qty) {
 
   if (length1 === Infinity && length2 === Infinity) {
     // Image is too large for the roll width in either orientation!
-    // Fallback: assume it takes its larger dimension as length, and we can only fit 1 across
     return { colsAcross: 1, rowsNeeded: qty, lengthConsumed: qty * Math.max(w, h), cellW: Math.min(w, h), cellH: Math.max(w, h) };
   }
 
