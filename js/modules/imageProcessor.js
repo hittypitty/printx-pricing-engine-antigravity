@@ -73,6 +73,51 @@ export async function processImage(file) {
       const originalWidthPx = img.naturalWidth;
       const originalHeightPx = img.naturalHeight;
 
+      // --- Transparency check ---
+      // Draw to offscreen canvas and sample corners + edges for alpha
+      let hasTransparency = false;
+      try {
+        const canvas = document.createElement('canvas');
+        // Use a scaled-down version if image is very large to save memory
+        const maxDim = 512;
+        const scale = Math.min(1, maxDim / Math.max(originalWidthPx, originalHeightPx));
+        const cw = Math.round(originalWidthPx * scale);
+        const ch = Math.round(originalHeightPx * scale);
+        canvas.width = cw;
+        canvas.height = ch;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, cw, ch);
+        const data = ctx.getImageData(0, 0, cw, ch).data;
+
+        // Sample positions: corners, edge midpoints, and a grid of border pixels
+        const samplePoints = [
+          [0, 0], [cw - 1, 0], [0, ch - 1], [cw - 1, ch - 1],             // corners
+          [Math.floor(cw / 2), 0], [Math.floor(cw / 2), ch - 1],           // top/bottom mid
+          [0, Math.floor(ch / 2)], [cw - 1, Math.floor(ch / 2)],           // left/right mid
+        ];
+        // Also sample every 10th pixel along all four edges
+        for (let x = 0; x < cw; x += 10) {
+          samplePoints.push([x, 0]);
+          samplePoints.push([x, ch - 1]);
+        }
+        for (let y = 0; y < ch; y += 10) {
+          samplePoints.push([0, y]);
+          samplePoints.push([cw - 1, y]);
+        }
+
+        for (const [x, y] of samplePoints) {
+          const idx = (y * cw + x) * 4;
+          const alpha = data[idx + 3];
+          if (alpha < 250) {  // Found a transparent/semi-transparent pixel
+            hasTransparency = true;
+            break;
+          }
+        }
+      } catch (e) {
+        // Canvas security error or other issue — skip check
+        hasTransparency = true; // Don't block on failure
+      }
+
       // Convert to inches using the detected or assumed DPI
       const widthInchesRaw = originalWidthPx / activeDpi;
       const heightInchesRaw = originalHeightPx / activeDpi;
@@ -88,7 +133,10 @@ export async function processImage(file) {
       let warning = null;
       let requiresOverride = false;
 
-      if (width > MAX_PRINTABLE_WIDTH_INCHES) {
+      if (!hasTransparency) {
+        isValid = false;
+        error = 'Image does not have a transparent background. DTF requires PNG with transparent background.';
+      } else if (width > MAX_PRINTABLE_WIDTH_INCHES) {
         if (dpiConfidence === 'high') {
           isValid = false;
           error = `Width exceeds maximum printable size of ${MAX_PRINTABLE_WIDTH_INCHES}".`;
@@ -116,7 +164,8 @@ export async function processImage(file) {
         hasWarning,
         warning,
         requiresOverride,
-        isOverridden: false
+        isOverridden: false,
+        hasTransparency
       });
     };
 
