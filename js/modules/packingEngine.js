@@ -100,7 +100,7 @@ export function calculatePackedDimensions(images) {
 
   return {
     totalWidth: Number(totalWidth.toFixed(2)),
-    totalLength: Number(totalLength.toFixed(2)),
+    totalLength: Math.ceil(totalLength),
     imageCount: validImages.length,
     sheetDetails,
   };
