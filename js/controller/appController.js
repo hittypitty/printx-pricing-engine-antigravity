@@ -52,20 +52,60 @@ export function recalculate() {
       return;
     }
 
-    // Build dims directly — NO resolveDimensions, NO parseLength, NO format lookup
+    // Start with Meters as the baseline
     const totalMeters = lengthInches / 39;
-    const pricingWidth = 24; // Meters pricing width
-    const dims = {
+    const packedWidth = s.computedImageWidth || 22.5;
+    
+    let bestFormat = 'Meters';
+    let bestDims = {
       printableWidth: 22.5,
-      pricingWidth,
+      pricingWidth: 24, // Meters pricing width
       length: lengthInches,
       quantity: 1,
       totalMeters,
-      totalSqInches: pricingWidth * lengthInches,
+      totalSqInches: 24 * lengthInches,
       isSheetFormat: false,
     };
 
-    const pricing = calculatePrintCost({ format: 'Meters', ...dims });
+    let bestPricing = calculatePrintCost({ format: 'Meters', ...bestDims });
+
+    // Auto-detect if the packed dimensions fit into standard sheet formats (A4, A3, A2)
+    // and use them if they are cheaper than the Meter rate.
+    const minDim = Math.min(packedWidth, lengthInches);
+    const maxDim = Math.max(packedWidth, lengthInches);
+    const { formats } = getConfig();
+    const FMT = formats.FORMATS;
+
+    Object.keys(FMT).forEach(fmtName => {
+      if (fmtName === 'Meters') return;
+      const f = FMT[fmtName];
+      const fMin = Math.min(f.printableWidth, f.length);
+      const fMax = Math.max(f.printableWidth, f.length);
+      
+      // Check if packed dimensions fit within this sheet format (with 0.1" tolerance)
+      if (minDim <= fMin + 0.1 && maxDim <= fMax + 0.1) {
+        const testDims = {
+          printableWidth: f.printableWidth,
+          pricingWidth: f.pricingWidth,
+          length: f.length,
+          quantity: 1,
+          totalMeters: f.length / 39,
+          totalSqInches: f.pricingWidth * f.length,
+          isSheetFormat: true,
+        };
+        const testPricing = calculatePrintCost({ format: fmtName, ...testDims });
+        
+        // Use this format if it's cheaper or equal
+        if (testPricing.printCost <= bestPricing.printCost) {
+          bestFormat = fmtName;
+          bestDims = testDims;
+          bestPricing = testPricing;
+        }
+      }
+    });
+
+    const pricing = bestPricing;
+    const dims = bestDims;
     const conversion = calculateConversionCost(s.conversions);
 
     // Delivery
@@ -92,6 +132,7 @@ export function recalculate() {
 
     update({
       isValid: true, validationError: null,
+      format: bestFormat,
       ...dims,
       printCost: pricing.printCost,
       effectiveRate: pricing.effectiveRate,
@@ -261,6 +302,7 @@ export function onImagesUpdated(newImages) {
         inputMode: 'image',
         format: 'Meters',
         computedImageLength: packed.totalLength,
+        computedImageWidth: packed.totalWidth,
         designCount: validToPack.reduce((sum, img) => sum + img.quantity, 0)
       });
     } else {
@@ -389,6 +431,7 @@ function onManualSizesUpdated(newSizes) {
         inputMode: 'manual-size',
         format: 'Meters',
         computedImageLength: packed.totalLength,
+        computedImageWidth: packed.totalWidth,
         designCount: validToPack.reduce((sum, img) => sum + img.quantity, 0)
       });
     }

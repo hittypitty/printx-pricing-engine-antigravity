@@ -83,8 +83,9 @@ export function calculatePackedDimensions(images) {
     let imgLength = layout.lengthConsumed;
     totalLength += imgLength;
 
-    if (img.width > totalWidth) {
-      totalWidth = img.width;
+    const consumedWidth = layout.cellW * layout.colsAcross;
+    if (consumedWidth > totalWidth) {
+      totalWidth = consumedWidth;
     }
 
     sheetDetails.push({
