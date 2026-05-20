@@ -15,3 +15,15 @@ export const METER_SLABS = [
 ];
 
 export const PACKAGING_COST = 20; // ₹, applied only for courier delivery
+
+export const UV_DTF_PRICING = {
+  A4_NORMAL: 177,
+  A4_3D: 236,
+  A3_SLABS: [
+    { min: 1,   max: 20,       rate: 354 },
+    { min: 21,  max: 49,       rate: 325 },
+    { min: 50,  max: 99,       rate: 295 },
+    { min: 100, max: Infinity, rate: 236 }
+  ]
+};
+

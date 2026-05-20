@@ -8,10 +8,72 @@ import { getConfig } from '../state/configStore.js';
 import { validateInputs } from '../modules/validationEngine.js';
 import { resolveDimensions } from '../modules/formatParser.js';
 import { calculatePrintCost, calculateConversionCost } from '../modules/pricingEngine.js';
-import { calculateAllShipping, getPackagingCost, getBestCourier } from '../modules/deliveryEngine.js';
+import { calculateAllShipping, getPackagingCost, getBestCourier, getUVDTFWeight, getFabricWeight } from '../modules/deliveryEngine.js';
 import { calculatePackedDimensions } from '../modules/packingEngine.js';
 import { generateQuote } from '../modules/quoteGenerator.js';
 import { update, getState } from '../state/store.js';
+
+/**
+ * Helper to calculate required sheets and stickers per sheet for UV DTF.
+ * Groups identical sticker sizes (ignoring orientation) to pack them together,
+ * and tests both original and rotated (90 deg) orientations to maximize sheet fit.
+ */
+function calculateUVDTFSheets(items, sheetW, sheetH) {
+  const groups = {};
+  items.forEach(item => {
+    const w = Number(item.width || 0);
+    const h = Number(item.length || item.height || 0);
+    const qty = Number(item.quantity || item.qty || 1);
+    if (w <= 0 || h <= 0 || qty <= 0) return;
+
+    // Sort to group rotated items of the same dimensions together
+    const minD = Math.min(w, h).toFixed(2);
+    const maxD = Math.max(w, h).toFixed(2);
+    const key = `${minD}x${maxD}`;
+
+    if (!groups[key]) {
+      groups[key] = { w: Math.min(w, h), h: Math.max(w, h), qty: 0 };
+    }
+    groups[key].qty += qty;
+  });
+
+  let totalSheets = 0;
+  let firstGroupCapacity = 0;
+  let isFirst = true;
+
+  Object.values(groups).forEach(g => {
+    const gap = 0.0787; // 2mm in inches
+
+    // Option 1: Original orientation
+    const effW1 = g.w + gap;
+    const effH1 = g.h + gap;
+    const fitX1 = Math.floor(sheetW / effW1);
+    const fitY1 = Math.floor(sheetH / effH1);
+    const fit1 = fitX1 * fitY1;
+
+    // Option 2: Rotated 90 degrees orientation
+    const effW2 = g.h + gap;
+    const effH2 = g.w + gap;
+    const fitX2 = Math.floor(sheetW / effW2);
+    const fitY2 = Math.floor(sheetH / effH2);
+    const fit2 = fitX2 * fitY2;
+
+    const stickersPerSheet = Math.max(1, Math.max(fit1, fit2));
+    const sheetsNeeded = Math.ceil(g.qty / stickersPerSheet);
+
+    totalSheets += sheetsNeeded;
+
+    if (isFirst) {
+      firstGroupCapacity = stickersPerSheet;
+      isFirst = false;
+    }
+  });
+
+  return {
+    totalSheets: Math.max(1, totalSheets),
+    stickersPerSheet: firstGroupCapacity,
+  };
+}
 
 /**
  * Full recalculation pipeline. Called on any input change.
@@ -24,10 +86,13 @@ export function recalculate() {
   const isManualSizeMode = s.inputMode === 'manual-size' && s.manualSizes && s.manualSizes.length > 0;
   
   if (isImageMode || isManualSizeMode) {
-    if (isManualSizeMode && s.manualSizes.some(sz => Number(sz.width) > 24 || Number(sz.width) <= 0 || Number(sz.height) <= 0)) {
+    const isUV = s.printTechnology === 'uv_dtf';
+    const maxW = isUV ? 11 : 24;
+
+    if (isManualSizeMode && s.manualSizes.some(sz => Number(sz.width) > maxW || Number(sz.width) <= 0 || Number(sz.height) <= 0)) {
       update({
         isValid: false,
-        validationError: 'Invalid size. Width must be ≤ 24". Dimensions must be > 0.',
+        validationError: `Invalid size. Width must be ≤ ${maxW}". Dimensions must be > 0.`,
         printCost: 0, rateApplied: 0, methodLabel: '', printBreakdown: '',
         conversionCost: 0, conversionBreakdown: '', packagingCost: 0,
         shippingCost: 0, partnerName: '', countedWeight: 0, eta: '',
@@ -39,7 +104,7 @@ export function recalculate() {
 
     const lengthInches = s.computedImageLength;
 
-    if (!lengthInches || lengthInches <= 0) {
+    if (!isUV && (!lengthInches || lengthInches <= 0)) {
       update({
         isValid: false,
         validationError: 'Could not calculate length. Please check your inputs.',
@@ -52,66 +117,147 @@ export function recalculate() {
       return;
     }
 
-    // Start with Meters as the baseline
-    const totalMeters = lengthInches / 39;
-    const packedWidth = s.computedImageWidth || 22.5;
-    
-    let bestFormat = 'Meters';
-    let bestDims = {
-      printableWidth: 22.5,
-      pricingWidth: 24, // Meters pricing width
-      length: lengthInches,
-      quantity: 1,
-      totalMeters,
-      totalSqInches: 24 * lengthInches,
-      isSheetFormat: false,
-    };
+    let bestFormat, bestDims, bestPricing;
 
-    let bestPricing = calculatePrintCost({ format: 'Meters', ...bestDims });
-
-    // Auto-detect if the packed dimensions fit into standard sheet formats (A4, A3, A2)
-    // and use them if they are cheaper than the Meter rate.
-    const minDim = Math.min(packedWidth, lengthInches);
-    const maxDim = Math.max(packedWidth, lengthInches);
-    const { formats } = getConfig();
-    const FMT = formats.FORMATS;
-
-    Object.keys(FMT).forEach(fmtName => {
-      if (fmtName === 'Meters') return;
-      const f = FMT[fmtName];
-      const fMin = Math.min(f.printableWidth, f.length);
-      const fMax = Math.max(f.printableWidth, f.length);
-      
-      // Check if packed dimensions fit within this sheet format (with 0.1" tolerance)
-      if (minDim <= fMin + 0.1 && maxDim <= fMax + 0.1) {
-        const testDims = {
-          printableWidth: f.printableWidth,
-          pricingWidth: f.pricingWidth,
-          length: f.length,
-          quantity: 1,
-          totalMeters: f.length / 39,
-          totalSqInches: f.pricingWidth * f.length,
-          isSheetFormat: true,
-        };
-        const testPricing = calculatePrintCost({ format: fmtName, ...testDims });
-        
-        // Use this format if it's cheaper or equal
-        if (testPricing.printCost <= bestPricing.printCost) {
-          bestFormat = fmtName;
-          bestDims = testDims;
-          bestPricing = testPricing;
-        }
+    if (isUV) {
+      let validItems = [];
+      if (s.inputMode === 'image') {
+        validItems = (s.images || []).filter(img => img.isValid && (!img.hasWarning || img.isOverridden));
+      } else {
+        validItems = (s.manualSizes || []).map((sz, i) => ({
+          isValid: true,
+          width: Number(sz.width) || 0,
+          length: Number(sz.height) || 0,
+          quantity: Number(sz.qty) || 1,
+        })).filter(img => img.width > 0 && img.length > 0);
       }
-    });
+      
+      const { uvDtfPricing } = getConfig();
+      const a4Rate = s.uvPrintType === '3d' ? uvDtfPricing.A4_3D : uvDtfPricing.A4_NORMAL;
+      
+      // Calculate sheets for A4 (11x8)
+      const a4SheetsResult = calculateUVDTFSheets(validItems, 11, 8);
+      const required_sheets_A4 = a4SheetsResult.totalSheets;
+      const stickersPerSheet_A4 = a4SheetsResult.stickersPerSheet;
+      const price_A4 = required_sheets_A4 * a4Rate;
+      
+      // Calculate sheets for A3 (11x16)
+      const a3SheetsResult = calculateUVDTFSheets(validItems, 11, 16);
+      const required_sheets_A3 = a3SheetsResult.totalSheets;
+      const stickersPerSheet_A3 = a3SheetsResult.stickersPerSheet;
+      
+      const slabs = uvDtfPricing.A3_SLABS;
+      const slab = slabs.find(sl => required_sheets_A3 >= sl.min && required_sheets_A3 <= sl.max);
+      const a3Rate = slab ? slab.rate : slabs[slabs.length - 1].rate;
+      const price_A3 = required_sheets_A3 * a3Rate;
+      
+      let bestQuantity, bestStickersPerSheet, bestPrice, bestRateApplied, bestMethodLabel;
+      
+      // Choose A3 if it is cheaper, or if prices are equal but it uses fewer physical sheets
+      if (price_A3 < price_A4 || (price_A3 === price_A4 && required_sheets_A3 < required_sheets_A4)) {
+        bestFormat = 'A3';
+        bestQuantity = required_sheets_A3;
+        bestStickersPerSheet = stickersPerSheet_A3;
+        bestPrice = price_A3;
+        bestRateApplied = a3Rate;
+        bestMethodLabel = 'UV A3';
+      } else {
+        bestFormat = 'A4';
+        bestQuantity = required_sheets_A4;
+        bestStickersPerSheet = stickersPerSheet_A4;
+        bestPrice = price_A4;
+        bestRateApplied = a4Rate;
+        bestMethodLabel = `UV A4 ${s.uvPrintType === '3d' ? '3D' : 'Normal'}`;
+      }
+      
+      bestDims = {
+        printableWidth: 11,
+        pricingWidth: 11,
+        length: bestFormat === 'A4' ? 8 : 16,
+        quantity: bestQuantity,
+        totalMeters: ( (bestFormat === 'A4' ? 8 : 16) * bestQuantity ) / 39,
+        totalSqInches: 11 * (bestFormat === 'A4' ? 8 : 16) * bestQuantity,
+        isSheetFormat: true,
+        stickersPerSheet: bestStickersPerSheet,
+        computedImageLength: bestFormat === 'A4' ? bestQuantity * 8 : bestQuantity * 16,
+      };
+      
+      bestPricing = {
+        printCost: bestPrice,
+        effectiveRate: bestDims.totalSqInches > 0 ? (bestPrice / bestDims.totalSqInches).toFixed(2) : '0.00',
+        rateApplied: bestRateApplied,
+        methodLabel: bestMethodLabel,
+        breakdown: `${bestQuantity} pcs × ₹${bestRateApplied} / pc`,
+      };
+    } else {
+      // Fabric DTF
+      const totalMeters = lengthInches / 39;
+      const packedWidth = s.computedImageWidth || 22.5;
+      
+      bestFormat = 'Meters';
+      bestDims = {
+        printableWidth: 22.5,
+        pricingWidth: 24, // Meters pricing width
+        length: lengthInches,
+        quantity: 1,
+        totalMeters,
+        totalSqInches: 24 * lengthInches,
+        isSheetFormat: false,
+      };
+
+      bestPricing = calculatePrintCost({ format: 'Meters', ...bestDims });
+
+      // Auto-detect if the packed dimensions fit into standard sheet formats (A4, A3, A2)
+      // and use them if they are cheaper than the Meter rate.
+      const minDim = Math.min(packedWidth, lengthInches);
+      const maxDim = Math.max(packedWidth, lengthInches);
+      const { formats } = getConfig();
+      const FMT = formats.FORMATS;
+
+      Object.keys(FMT).forEach(fmtName => {
+        if (fmtName === 'Meters') return;
+        const f = FMT[fmtName];
+        const fMin = Math.min(f.printableWidth, f.length);
+        const fMax = Math.max(f.printableWidth, f.length);
+        
+        // Check if packed dimensions fit within this sheet format (with 0.1" tolerance)
+        if (minDim <= fMin + 0.1 && maxDim <= fMax + 0.1) {
+          const testDims = {
+            printableWidth: f.printableWidth,
+            pricingWidth: f.pricingWidth,
+            length: f.length,
+            quantity: 1,
+            totalMeters: f.length / 39,
+            totalSqInches: f.pricingWidth * f.length,
+            isSheetFormat: true,
+          };
+          const testPricing = calculatePrintCost({ format: fmtName, ...testDims });
+          
+          // Use this format if it's cheaper or equal
+          if (testPricing.printCost <= bestPricing.printCost) {
+            bestFormat = fmtName;
+            bestDims = testDims;
+            bestPricing = testPricing;
+          }
+        }
+      });
+    }
 
     const pricing = bestPricing;
     const dims = bestDims;
-    const conversion = calculateConversionCost(s.conversions);
+    const conversion = s.printTechnology === 'uv_dtf'
+      ? { conversionCost: 0, breakdown: '', breakdownList: [] }
+      : calculateConversionCost(s.conversions);
+
+    // Calculate weight beforehand
+    const computedWeightVal = s.printTechnology === 'uv_dtf'
+      ? getUVDTFWeight(dims.format || bestFormat, dims.quantity, dims.length)
+      : getFabricWeight(dims.totalMeters);
 
     // Delivery
     const packagingCost = getPackagingCost(s.deliveryMethod);
     const allPartnerResults = s.deliveryMethod === 'courier'
-      ? calculateAllShipping(totalMeters, 1, s.courierFilter)
+      ? calculateAllShipping(dims.totalMeters, dims.quantity, s.courierFilter, computedWeightVal)
       : [];
 
     let selected = null;
@@ -125,7 +271,7 @@ export function recalculate() {
 
     const shippingCost = selected ? selected.shippingCost : 0;
     const partnerName = selected ? selected.partnerName : 'Office Pickup';
-    const countedWeight = selected ? selected.countedWeight : 0;
+    const countedWeight = selected ? selected.countedWeight : Math.round(computedWeightVal * 100) / 100;
     const eta = selected ? selected.eta : '';
     const shippingBreakdown = selected ? selected.breakdown : '';
     const finalTotal = Math.ceil(pricing.printCost + conversion.conversionCost + packagingCost + shippingCost);
@@ -195,18 +341,30 @@ export function recalculate() {
   update({ isValid: true, validationError: null });
 
   // Step 1: Resolve dimensions (returns both widths)
-  const dims = resolveDimensions(targetFormat, s.quantity, targetLength);
+  let dims = resolveDimensions(targetFormat, s.quantity, targetLength);
 
-  // Step 2: Print cost — dims.totalSqInches uses pricingWidth (24" for Meters)
-  const pricing = calculatePrintCost({ format: targetFormat, ...dims });
+  // Step 2: Print cost
+  const pricing = calculatePrintCost({
+    format: targetFormat,
+    printTechnology: s.printTechnology,
+    uvPrintType: s.uvPrintType,
+    ...dims
+  });
 
   // Step 3: Conversion cost (modular, separate from print)
-  const conversion = calculateConversionCost(s.conversions);
+  const conversion = s.printTechnology === 'uv_dtf'
+    ? { conversionCost: 0, breakdown: '', breakdownList: [] }
+    : calculateConversionCost(s.conversions);
+
+  // Calculate weight beforehand
+  const computedWeightVal = s.printTechnology === 'uv_dtf'
+    ? getUVDTFWeight(targetFormat, dims.quantity, dims.length)
+    : getFabricWeight(dims.totalMeters);
 
   // Step 4: Delivery
   const packagingCost = getPackagingCost(s.deliveryMethod);
   const allPartnerResults = s.deliveryMethod === 'courier'
-    ? calculateAllShipping(dims.totalMeters, dims.quantity, s.courierFilter)
+    ? calculateAllShipping(dims.totalMeters, dims.quantity, s.courierFilter, computedWeightVal)
     : [];
 
   // Step 5: Resolve selected partner
@@ -223,7 +381,7 @@ export function recalculate() {
 
   const shippingCost = selected ? selected.shippingCost : 0;
   const partnerName = selected ? selected.partnerName : 'Office Pickup';
-  const countedWeight = selected ? selected.countedWeight : 0;
+  const countedWeight = selected ? selected.countedWeight : Math.round(computedWeightVal * 100) / 100;
   const eta = selected ? selected.eta : '';
   const shippingBreakdown = selected ? selected.breakdown : '';
 
@@ -289,6 +447,10 @@ export function removeConversion(id) {
 }
 
 export function onImagesUpdated(newImages) {
+  const state = getState();
+  const isUV = state.printTechnology === 'uv_dtf';
+  const printableWidth = isUV ? 11 : 22.5;
+
   if (newImages && newImages.length > 0) {
     // Only pack images that are completely valid and have no blocking warnings
     const validToPack = newImages.filter(img => img.isValid && (!img.hasWarning || img.isOverridden));
@@ -296,11 +458,11 @@ export function onImagesUpdated(newImages) {
     // If there are images but NONE are validToPack, it means they are all blocked by warnings or errors.
     // We should show them in the UI but NOT calculate any packing/pricing for them yet.
     if (validToPack.length > 0) {
-      const packed = calculatePackedDimensions(validToPack);
+      const packed = calculatePackedDimensions(validToPack, printableWidth, isUV ? 0.0787 : 0.2);
       update({ 
         images: newImages, 
         inputMode: 'image',
-        format: 'Meters',
+        format: isUV ? (packed.totalLength <= 8 ? 'A4' : 'A3') : 'Meters',
         computedImageLength: packed.totalLength,
         computedImageWidth: packed.totalWidth,
         designCount: validToPack.reduce((sum, img) => sum + img.quantity, 0)
@@ -400,6 +562,11 @@ export function removeManualSize(id) {
 }
 
 function onManualSizesUpdated(newSizes) {
+  const state = getState();
+  const isUV = state.printTechnology === 'uv_dtf';
+  const maxW = isUV ? 11 : 24;
+  const printableWidth = isUV ? 11 : 22.5;
+
   if (newSizes && newSizes.length > 0) {
     const pseudoImages = newSizes.map((s, i) => ({
       isValid: true,
@@ -414,7 +581,7 @@ function onManualSizesUpdated(newSizes) {
     let allEmpty = true;
     pseudoImages.forEach(img => {
       if (img.width > 0 || img.length > 0) allEmpty = false;
-      if (img.width > 24 || img.width < 0 || img.length < 0) hasInvalid = true;
+      if (img.width > maxW || img.width < 0 || img.length < 0) hasInvalid = true;
     });
 
     if (allEmpty) {
@@ -424,12 +591,12 @@ function onManualSizesUpdated(newSizes) {
     } else {
       // Filter out incomplete sizes for calculation, but keep them in UI state
       const validToPack = pseudoImages.filter(img => img.width > 0 && img.length > 0);
-      const packed = calculatePackedDimensions(validToPack);
+      const packed = calculatePackedDimensions(validToPack, printableWidth, isUV ? 0.0787 : 0.2);
       
       update({ 
         manualSizes: newSizes, 
         inputMode: 'manual-size',
-        format: 'Meters',
+        format: isUV ? (packed.totalLength <= 8 ? 'A4' : 'A3') : 'Meters',
         computedImageLength: packed.totalLength,
         computedImageWidth: packed.totalWidth,
         designCount: validToPack.reduce((sum, img) => sum + img.quantity, 0)
@@ -442,5 +609,39 @@ function onManualSizesUpdated(newSizes) {
       designCount: 0
     });
   }
+  recalculate();
+}
+
+export function setPrintTechnology(tech) {
+  const s = getState();
+  const updateObj = { printTechnology: tech };
+  
+  if (tech === 'uv_dtf') {
+    if (s.format === 'Meters' || s.format === 'A2') {
+      updateObj.format = 'Custom';
+    } else if (s.format !== 'A4' && s.format !== 'A3' && s.format !== 'Custom') {
+      updateObj.format = 'A4';
+    }
+    updateObj.conversions = []; // Clear conversions for UV DTF
+  } else {
+    // Switch from UV DTF to Fabric DTF
+    if (s.format === 'Custom') {
+      updateObj.format = 'Meters';
+    }
+  }
+  
+  update(updateObj);
+  
+  if (s.designTab === 'image') {
+    onImagesUpdated(s.images);
+  } else if (s.designTab === 'manual-size') {
+    onManualSizesUpdated(s.manualSizes);
+  } else {
+    recalculate();
+  }
+}
+
+export function setUvPrintType(type) {
+  update({ uvPrintType: type });
   recalculate();
 }

@@ -25,8 +25,54 @@ import { getConfig } from '../state/configStore.js';
  * @returns {{ printCost: number, rateApplied: number, methodLabel: string, breakdown: string }}
  */
 export function calculatePrintCost(dims) {
-  const { pricing, formats } = getConfig();
-  const { format, totalMeters, totalSqInches, quantity, isSheetFormat } = dims;
+  const { pricing, formats, uvDtfPricing } = getConfig();
+  const { format, totalMeters, totalSqInches, quantity, isSheetFormat, printTechnology, uvPrintType, length } = dims;
+
+  // UV DTF Logic
+  if (printTechnology === 'uv_dtf') {
+    if (format === 'Custom') {
+      const slabs = uvDtfPricing.A3_SLABS;
+      const slab = slabs.find(s => quantity >= s.min && quantity <= s.max);
+      const a3Rate = slab ? slab.rate : slabs[slabs.length - 1].rate;
+      const rawPerPiecePrice = a3Rate * (length / 16);
+      const rate = Math.round(rawPerPiecePrice);
+      const printCost = rate * quantity;
+      const effectiveRate = totalSqInches > 0 ? (printCost / totalSqInches).toFixed(2) : '0.00';
+      return {
+        printCost,
+        effectiveRate,
+        rateApplied: rate,
+        methodLabel: `UV Custom`,
+        breakdown: `${quantity} pcs × ₹${rate} / pc`,
+      };
+    }
+
+    if (format === 'A4') {
+      const rate = uvPrintType === '3d' ? uvDtfPricing.A4_3D : uvDtfPricing.A4_NORMAL;
+      const printCost = rate * quantity;
+      const effectiveRate = totalSqInches > 0 ? (printCost / totalSqInches).toFixed(2) : '0.00';
+      return {
+        printCost,
+        effectiveRate,
+        rateApplied: rate,
+        methodLabel: `UV A4 ${uvPrintType === '3d' ? '3D' : 'Normal'}`,
+        breakdown: `${quantity} pcs × ₹${rate} / pc`,
+      };
+    } else {
+      const slabs = uvDtfPricing.A3_SLABS;
+      const slab = slabs.find(s => quantity >= s.min && quantity <= s.max);
+      const rate = slab ? slab.rate : slabs[slabs.length - 1].rate;
+      const printCost = rate * quantity;
+      const effectiveRate = totalSqInches > 0 ? (printCost / totalSqInches).toFixed(2) : '0.00';
+      return {
+        printCost,
+        effectiveRate,
+        rateApplied: rate,
+        methodLabel: `UV A3`,
+        breakdown: `${quantity} pcs × ₹${rate} / pc`,
+      };
+    }
+  }
 
   // 1. Sheet format → fixed price × quantity
   if (isSheetFormat) {

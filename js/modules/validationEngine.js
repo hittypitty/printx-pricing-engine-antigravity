@@ -4,6 +4,7 @@
  */
 
 import { getConfig } from '../state/configStore.js';
+import { parseLength } from './formatParser.js';
 
 /**
  * Validate all user inputs before the pipeline runs.
@@ -34,11 +35,11 @@ export function validateInputs({ format, quantity, rawLength, printableWidth }) 
     };
   }
 
-  if (format === 'Meters') {
+  if (format === 'Meters' || format === 'Custom') {
     if (!rawLength || rawLength.trim() === '') {
       return {
         isValid: false,
-        error: 'Length is required for Meters format.',
+        error: `Length is required for ${format === 'Meters' ? 'Meters' : 'Custom'} format.`,
       };
     }
     if (/[^0-9+\-*x.m\s]/i.test(rawLength)) {
@@ -46,6 +47,15 @@ export function validateInputs({ format, quantity, rawLength, printableWidth }) 
         isValid: false,
         error: 'Length contains invalid characters.',
       };
+    }
+    if (format === 'Custom') {
+      const parsedLen = parseLength(rawLength);
+      if (parsedLen < 8 || parsedLen > 20) {
+        return {
+          isValid: false,
+          error: 'Length must be between 8 and 20 inches for Custom format.',
+        };
+      }
     }
   }
 

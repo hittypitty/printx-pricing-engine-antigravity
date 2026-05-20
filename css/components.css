@@ -387,7 +387,7 @@ input[type="number"] {
 }
 
 .kpi-block {
-  padding: 16px;
+  padding: 12px 14px;
   background: #f8f9fa;
   border: 1px solid var(--border-color);
   border-radius: 12px;
@@ -408,11 +408,12 @@ input[type="number"] {
 }
 
 .kpi-value {
-  font-size: 26px;
+  font-size: 22px;
   font-weight: var(--fw-bold);
   color: var(--text-primary);
   margin-bottom: 8px;
   line-height: 1.1;
+  white-space: nowrap;
 }
 
 .kpi-sub {

@@ -4,7 +4,7 @@
  */
 
 import { subscribe, getState } from '../state/store.js';
-import { onInputChange, onImagesUpdated, addConversion, updateConversion, removeConversion, setDesignTab, addManualSize, updateManualSize, removeManualSize, overrideImageWidth } from '../controller/appController.js';
+import { onInputChange, onImagesUpdated, addConversion, updateConversion, removeConversion, setDesignTab, addManualSize, updateManualSize, removeManualSize, overrideImageWidth, setPrintTechnology, setUvPrintType } from '../controller/appController.js';
 import { processImage } from '../modules/imageProcessor.js';
 
 export function init(container) {
@@ -69,7 +69,35 @@ export function init(container) {
 
 function buildHTML(state) {
   const isImageTab = state.designTab === 'image';
+  const isUV = state.printTechnology === 'uv_dtf';
   return `
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="card-icon">
+            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+            <line x1="8" y1="21" x2="16" y2="21"></line>
+            <line x1="12" y1="17" x2="12" y2="21"></line>
+          </svg>
+          Print Technology
+        </h2>
+      </div>
+      <div class="card-body">
+        <div class="btn-group" style="margin-bottom: ${isUV ? 'var(--space-md)' : '0'};">
+          <button class="btn btn-select ${!isUV ? 'active' : ''}" data-action="set-tech" data-value="fabric" id="tech-fabric">👕 Fabric DTF</button>
+          <button class="btn btn-select ${isUV ? 'active' : ''}" data-action="set-tech" data-value="uv_dtf" id="tech-uv">✨ UV DTF</button>
+        </div>
+        
+        <div id="uv-options-container" style="display: ${isUV ? 'block' : 'none'}; margin-top: 12px;">
+          <label class="field-label">UV PRINT TYPE</label>
+          <div class="btn-group" style="margin-bottom: 0;">
+            <button class="btn btn-select ${state.uvPrintType === 'normal' ? 'active' : ''}" data-action="set-uv-type" data-value="normal" id="uv-type-normal">Normal</button>
+            <button class="btn btn-select ${state.uvPrintType === '3d' ? 'active' : ''}" data-action="set-uv-type" data-value="3d" id="uv-type-3d">3D</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="card">
       <div class="card-header">
         <h2 class="card-title">
@@ -119,19 +147,19 @@ function buildHTML(state) {
         <div class="field-group" style="margin-bottom: 0;">
           <label class="field-label">SELECT FORMAT</label>
           <div class="btn-group" id="format-group">
-            ${['A4', 'A3', 'A2', 'Meters'].map(f => `
-              <button class="btn btn-select ${state.format === f ? 'active' : ''}" data-action="format" data-value="${f}" id="btn-format-${f.toLowerCase()}" ${state.inputMode === 'image' ? 'disabled' : ''}>${f}</button>
+            ${(isUV ? ['A4', 'A3', 'Custom'] : ['A4', 'A3', 'A2', 'Meters']).map(f => `
+              <button class="btn btn-select ${state.format === f ? 'active' : ''}" data-action="format" data-value="${f}" id="btn-format-${f.toLowerCase()}" ${state.inputMode === 'image' || state.inputMode === 'manual-size' ? 'disabled' : ''}>${f}</button>
             `).join('')}
           </div>
         </div>
         
         <div style="height: 1px; background: var(--border-color); margin: var(--space-xl) 0;"></div>
 
-        <div class="field-group" id="meters-fields" style="display: ${state.format === 'Meters' || state.inputMode === 'image' || state.inputMode === 'manual-size' ? 'block' : 'none'}; margin-bottom: 0;">
+        <div class="field-group" id="meters-fields" style="display: ${state.format === 'Meters' || state.format === 'Custom' || state.inputMode === 'image' || state.inputMode === 'manual-size' ? 'block' : 'none'}; margin-bottom: 0;">
           <div class="input-row">
             <div class="input-col">
               <label class="field-label">WIDTH (INCHES)</label>
-              <input type="text" class="input-field input-fixed" value="24 (Fixed)" disabled id="input-width" />
+              <input type="text" class="input-field input-fixed" value="${isUV ? '11 (Fixed)' : '24 (Fixed)'}" disabled id="input-width" />
             </div>
             <div class="input-col">
               <label class="field-label">LENGTH (INCHES)</label>
@@ -161,9 +189,9 @@ function buildHTML(state) {
           </div>
         </div>
 
-        <div style="height: 1px; background: var(--border-color); margin: var(--space-xl) 0;"></div>
+        <div id="conversions-divider" style="height: 1px; background: var(--border-color); margin: var(--space-xl) 0; display: ${isUV ? 'none' : 'block'};"></div>
 
-        <div class="field-group" style="margin-bottom: 0;">
+        <div class="field-group" id="conversions-section" style="margin-bottom: 0; display: ${isUV ? 'none' : 'block'};">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
             <label class="field-label" style="margin-bottom: 0;">CONVERSIONS</label>
             <button class="btn-add-conversion" data-action="add-conversion">+ Add Conversion</button>
@@ -227,6 +255,12 @@ function handleClick(e) {
   const value = btn.dataset.value;
 
   switch (action) {
+    case 'set-tech':
+      setPrintTechnology(value);
+      break;
+    case 'set-uv-type':
+      setUvPrintType(value);
+      break;
     case 'set-design-tab':
       setDesignTab(value);
       break;
@@ -349,6 +383,18 @@ function handleInput(e) {
 }
 
 function updateDOM(container, state) {
+  const isUV = state.printTechnology === 'uv_dtf';
+
+  // Update technology buttons
+  container.querySelectorAll('#tech-fabric').forEach(btn => btn.classList.toggle('active', !isUV));
+  container.querySelectorAll('#tech-uv').forEach(btn => btn.classList.toggle('active', isUV));
+  
+  const uvOptions = container.querySelector('#uv-options-container');
+  if (uvOptions) uvOptions.style.display = isUV ? 'block' : 'none';
+  
+  container.querySelectorAll('#uv-type-normal').forEach(btn => btn.classList.toggle('active', state.uvPrintType === 'normal'));
+  container.querySelectorAll('#uv-type-3d').forEach(btn => btn.classList.toggle('active', state.uvPrintType === '3d'));
+
   // Update Design Tabs
   container.querySelectorAll('#tab-image').forEach(btn => btn.classList.toggle('active', state.designTab === 'image'));
   container.querySelectorAll('#tab-manual').forEach(btn => btn.classList.toggle('active', state.designTab === 'manual-size'));
@@ -358,17 +404,49 @@ function updateDOM(container, state) {
   if (imgModeContainer) imgModeContainer.style.display = state.designTab === 'image' ? 'block' : 'none';
   if (manualModeContainer) manualModeContainer.style.display = state.designTab === 'manual-size' ? 'block' : 'none';
 
-  // Update format buttons and disable if image mode or manual size mode
-  container.querySelectorAll('#format-group .btn-select').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.value === state.format);
-    btn.disabled = state.inputMode === 'image' || state.inputMode === 'manual-size';
-  });
+  // Re-render and update format buttons
+  const formatGroup = container.querySelector('#format-group');
+  if (formatGroup) {
+    const list = isUV ? ['A4', 'A3', 'Custom'] : ['A4', 'A3', 'A2', 'Meters'];
+    formatGroup.innerHTML = list.map(f => `
+      <button class="btn btn-select ${state.format === f ? 'active' : ''}" data-action="format" data-value="${f}" id="btn-format-${f.toLowerCase()}" ${state.inputMode === 'image' || state.inputMode === 'manual-size' ? 'disabled' : ''}>${f}</button>
+    `).join('');
+  }
 
   // Show/hide meters vs quantity fields based on format OR image/manual mode
   const metersFields = container.querySelector('#meters-fields');
   const quantityField = container.querySelector('#quantity-field');
-  if (metersFields) metersFields.style.display = (state.format === 'Meters' || state.inputMode === 'image' || state.inputMode === 'manual-size') ? 'block' : 'none';
-  if (quantityField) quantityField.style.display = (state.format !== 'Meters' && state.inputMode !== 'image' && state.inputMode !== 'manual-size') ? 'block' : 'none';
+  const showMeters = (state.format === 'Meters' || state.format === 'Custom' || state.inputMode === 'image' || state.inputMode === 'manual-size');
+  const showQuantity = (state.format !== 'Meters' && state.inputMode !== 'image' && state.inputMode !== 'manual-size');
+  if (metersFields) metersFields.style.display = showMeters ? 'block' : 'none';
+  if (quantityField) quantityField.style.display = showQuantity ? 'block' : 'none';
+
+  // Show/hide conversions section based on printTechnology
+  const conversionsDivider = container.querySelector('#conversions-divider');
+  const conversionsSection = container.querySelector('#conversions-section');
+  if (conversionsDivider) conversionsDivider.style.display = isUV ? 'none' : 'block';
+  if (conversionsSection) conversionsSection.style.display = isUV ? 'none' : 'block';
+
+  // Update input-width dynamic text
+  const inputWidth = container.querySelector('#input-width');
+  if (inputWidth) {
+    inputWidth.value = isUV ? '11 (Fixed)' : '24 (Fixed)';
+  }
+
+  // Update quantity field values and spinner disable state
+  const inputQuantity = container.querySelector('#input-quantity');
+  if (inputQuantity) {
+    inputQuantity.value = state.quantity;
+    const isAutoPacking = state.inputMode === 'image' || state.inputMode === 'manual-size';
+    inputQuantity.disabled = isAutoPacking;
+    inputQuantity.style.background = isAutoPacking ? 'var(--bg-input)' : '';
+    inputQuantity.style.borderColor = isAutoPacking ? 'var(--border-color)' : '';
+    inputQuantity.style.color = isAutoPacking ? 'var(--text-muted)' : '';
+    
+    container.querySelectorAll('#quantity-field .number-input-group button').forEach(btn => {
+      btn.disabled = isAutoPacking;
+    });
+  }
 
   // Update format badge
   const badgeName = container.querySelector('#format-badge-name');
@@ -533,8 +611,12 @@ function updateDOM(container, state) {
   // Length helper text
   const lengthHelper = container.querySelector('#length-helper');
   if (lengthHelper && lengthInput) {
-    if ((state.format === 'Meters' || state.inputMode === 'image' || state.inputMode === 'manual-size') && state.length > 0 && state.isValid) {
-      lengthHelper.textContent = 'Total length: ' + state.length + '"';
+    if ((state.format === 'Meters' || state.format === 'Custom' || state.inputMode === 'image' || state.inputMode === 'manual-size') && state.length > 0 && state.isValid) {
+      if (state.format === 'Custom' && state.length < 8) {
+        lengthHelper.textContent = `Total length: ${state.length}" (Minimum billing length is 8" / 1 A4 sheet)`;
+      } else {
+        lengthHelper.textContent = 'Total length: ' + state.length + '"';
+      }
       lengthHelper.style.display = 'block';
       if (state.inputMode !== 'image' && state.inputMode !== 'manual-size') lengthInput.style.borderColor = 'var(--accent-pink)';
     } else {

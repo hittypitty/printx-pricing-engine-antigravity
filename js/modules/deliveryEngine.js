@@ -7,43 +7,59 @@ import { getConfig } from '../state/configStore.js';
 import { WEIGHT_CONFIG } from '../config/weightConfig.js';
 
 /**
- * Calculate shipping cost for a single courier partner.
- *
- * @param {string} partnerKey - e.g., 'bluedart'
- * @param {number} totalMeters
- * @param {number} quantity
- * @returns {{ partnerKey, partnerName, shippingCost, countedWeight, eta, trackUrl, breakdown } | null}
+ * Calculate A3 equivalent sheet count.
  */
-export function calculateShipping(partnerKey, totalMeters, quantity) {
-  const { couriers } = getConfig();
-  const partner = couriers[partnerKey];
-  if (!partner) return null;
+export function calculateUVDTFA3EquivalentSheets(format, quantity, length) {
+  if (format === 'A4') {
+    return quantity * 0.5;
+  } else if (format === 'A3') {
+    return quantity * 1.0;
+  } else if (format === 'Custom') {
+    const L = Number(length) || 16;
+    return quantity * (L / 16);
+  }
+  return quantity;
+}
 
-  // 1. Use only totalMeters
+/**
+ * Get shipping weight for UV DTF based on A3 equivalent sheets.
+ */
+export function getUVDTFWeight(format, quantity, length) {
+  const a3Equivalent = calculateUVDTFA3EquivalentSheets(format, quantity, length);
+  const qty = Math.ceil(a3Equivalent);
+  
+  const { weights } = getConfig();
+  const slabs = weights.UV_DTF_SHIPPING_SLABS || [];
+  const matched = slabs.find(s => qty >= s.min && qty <= s.max);
+  if (matched) {
+    return matched.weight;
+  }
+  if (slabs.length > 0) {
+    return slabs[slabs.length - 1].weight;
+  }
+  return 0.2; // default fallback
+}
+
+/**
+ * Get shipping weight for Fabric DTF using WEIGHT_CONFIG.
+ */
+export function getFabricWeight(totalMeters) {
   const combinedMeters = totalMeters;
-
-  // 2. Find slab (highest meter <= combinedMeters)
-  let matchedSlab = WEIGHT_CONFIG[0]; // fallback
+  let matchedSlab = WEIGHT_CONFIG[0];
   for (let i = 0; i < WEIGHT_CONFIG.length; i++) {
     if (WEIGHT_CONFIG[i].meter <= combinedMeters) {
       matchedSlab = WEIGHT_CONFIG[i];
     } else {
-      break; // Since array is sorted by meter, we can break once we exceed combinedMeters
+      break;
     }
   }
-  
-  // If combinedMeters is larger than our largest slab, the loop naturally stops at the largest slab.
 
-  // 3. Extract actual weight
   const actualWeight = matchedSlab.actualWeight;
-
-  // 4. Calculate volumetric weight
   let volumetricWeight = 0;
   if (matchedSlab.l && matchedSlab.b && matchedSlab.h) {
     volumetricWeight = (matchedSlab.l * matchedSlab.b * matchedSlab.h) / 5000;
   }
 
-  // 5. Final weight resolution
   let finalWeight = 0;
   if (matchedSlab.overrideWeight !== undefined) {
     finalWeight = matchedSlab.overrideWeight;
@@ -51,8 +67,29 @@ export function calculateShipping(partnerKey, totalMeters, quantity) {
     finalWeight = Math.max(actualWeight, volumetricWeight);
   }
 
-  // Fallback if finalWeight is somehow 0
-  finalWeight = Math.max(finalWeight, 0.01);
+  return Math.max(finalWeight, 0.01);
+}
+
+/**
+ * Calculate shipping cost for a single courier partner.
+ *
+ * @param {string} partnerKey - e.g., 'bluedart'
+ * @param {number} totalMeters
+ * @param {number} quantity
+ * @param {number} [weightOverride] - Pre-calculated weight (e.g. for UV DTF or global state)
+ * @returns {{ partnerKey, partnerName, shippingCost, countedWeight, eta, trackUrl, breakdown } | null}
+ */
+export function calculateShipping(partnerKey, totalMeters, quantity, weightOverride) {
+  const { couriers } = getConfig();
+  const partner = couriers[partnerKey];
+  if (!partner) return null;
+
+  let finalWeight = 0;
+  if (weightOverride !== undefined && weightOverride !== null) {
+    finalWeight = weightOverride;
+  } else {
+    finalWeight = getFabricWeight(totalMeters);
+  }
 
   const slabCount = Math.ceil(finalWeight / partner.slab);
   const shippingCost = partner.base + (Math.max(slabCount - 1, 0) * partner.add);
@@ -74,12 +111,13 @@ export function calculateShipping(partnerKey, totalMeters, quantity) {
  * @param {number} totalMeters
  * @param {number} quantity
  * @param {string} filter - 'all' | 'cheapest' | 'fastest'
+ * @param {number} [weightOverride]
  * @returns {Array} sorted partner results
  */
-export function calculateAllShipping(totalMeters, quantity, filter) {
+export function calculateAllShipping(totalMeters, quantity, filter, weightOverride) {
   const { couriers } = getConfig();
   const results = Object.keys(couriers)
-    .map(key => calculateShipping(key, totalMeters, quantity))
+    .map(key => calculateShipping(key, totalMeters, quantity, weightOverride))
     .filter(Boolean);
 
   switch (filter) {

@@ -201,6 +201,53 @@ function renderPanel(panel) {
         `).join('')}
       </div>
 
+      <!-- UV DTF PRICING -->
+      <div class="admin-section">
+        <h3 class="admin-section-title">✨ UV DTF Pricing</h3>
+        
+        <div class="admin-field">
+          <label class="admin-label">A4 Normal Rate (₹)</label>
+          <input type="number" class="input-field" value="${config.uvDtfPricing.A4_NORMAL}" data-section="uvDtfPricing" data-key="A4_NORMAL" />
+        </div>
+
+        <div class="admin-field">
+          <label class="admin-label">A4 3D Rate (₹)</label>
+          <input type="number" class="input-field" value="${config.uvDtfPricing.A4_3D}" data-section="uvDtfPricing" data-key="A4_3D" />
+        </div>
+
+        <h4 class="admin-subsection-title">A3 Slab Rates</h4>
+        ${config.uvDtfPricing.A3_SLABS.map((slab, i) => `
+          <div class="admin-slab-row">
+            <span class="admin-slab-range">${slab.min}–${slab.max === Infinity ? '∞' : slab.max} pcs</span>
+            <div class="admin-slab-input">
+              <span class="admin-slab-prefix">₹</span>
+              <input type="number" class="input-field input-sm" value="${slab.rate}" data-action="uv-slab-rate" data-index="${i}" />
+              <span class="admin-slab-suffix">/pc</span>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+
+      <!-- UV DTF SHIPPING WEIGHT -->
+      <div class="admin-section">
+        <h3 class="admin-section-title">📦 UV DTF Shipping Weight</h3>
+        <h4 class="admin-subsection-title">Shipping Slabs (A3 equiv sheets)</h4>
+        ${config.weights.UV_DTF_SHIPPING_SLABS.map((slab, i) => `
+          <div class="admin-slab-row">
+            <div style="display: flex; gap: 4px; align-items: center;">
+              <input type="number" class="input-field input-xs" value="${slab.min}" data-action="uv-weight-min" data-index="${i}" />
+              <span style="color: var(--text-muted);">-</span>
+              <input type="number" class="input-field input-xs" value="${slab.max === Infinity ? 999 : slab.max}" data-action="uv-weight-max" data-index="${i}" />
+              <span style="margin-left: 4px; color: var(--text-secondary); font-size: 13px;">pcs</span>
+            </div>
+            <div class="admin-slab-input">
+              <input type="number" step="0.01" class="input-field input-sm" value="${slab.weight}" data-action="uv-weight-val" data-index="${i}" />
+              <span class="admin-slab-suffix">kg</span>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+
       <!-- COURIERS -->
       <div class="admin-section">
         <h3 class="admin-section-title">🚚 Courier Partners</h3>
@@ -295,6 +342,35 @@ function saveAll(panel) {
   });
   if (!sectionUpdates.pricing) sectionUpdates.pricing = {};
   sectionUpdates.pricing.METER_SLABS = slabs;
+
+  // Collect ALL UV DTF slab rates from DOM
+  const uvSlabs = config.uvDtfPricing.A3_SLABS.map(s => ({ ...s }));
+  panel.querySelectorAll('[data-action="uv-slab-rate"]').forEach(input => {
+    const index = parseInt(input.dataset.index);
+    uvSlabs[index] = { ...uvSlabs[index], rate: parseFloat(input.value) };
+  });
+  if (!sectionUpdates.uvDtfPricing) sectionUpdates.uvDtfPricing = {};
+  sectionUpdates.uvDtfPricing.A3_SLABS = uvSlabs;
+
+  // Collect ALL UV DTF shipping weight slabs from DOM
+  const uvWeightSlabs = config.weights.UV_DTF_SHIPPING_SLABS.map((s, i) => {
+    const minInput = panel.querySelector(`[data-action="uv-weight-min"][data-index="${i}"]`);
+    const maxInput = panel.querySelector(`[data-action="uv-weight-max"][data-index="${i}"]`);
+    const weightInput = panel.querySelector(`[data-action="uv-weight-val"][data-index="${i}"]`);
+    
+    const minVal = minInput ? parseInt(minInput.value, 10) : s.min;
+    let maxVal = maxInput ? parseInt(maxInput.value, 10) : s.max;
+    if (maxVal >= 999) maxVal = 999;
+    const weightVal = weightInput ? parseFloat(weightInput.value) : s.weight;
+
+    return {
+      min: minVal,
+      max: maxVal,
+      weight: weightVal
+    };
+  });
+  if (!sectionUpdates.weights) sectionUpdates.weights = {};
+  sectionUpdates.weights.UV_DTF_SHIPPING_SLABS = uvWeightSlabs;
 
   // 3. Collect ALL sheet prices from DOM
   const formats = {};

@@ -15,18 +15,18 @@ export const SHEET_LENGTH = 39;
  *
  * Returns { colsAcross, rowsNeeded, lengthConsumed, cellW, cellH }
  */
-function bestContinuousLayout(imgWidth, imgLength, qty) {
+function bestContinuousLayout(imgWidth, imgLength, qty, printableWidth = 22.5, margin = 0.2) {
   // Single copy: no margins needed — use exact image dimensions
   if (qty === 1) {
     return { colsAcross: 1, rowsNeeded: 1, lengthConsumed: imgLength, cellW: imgWidth, cellH: imgLength };
   }
 
   // Multiple copies: add margins for spacing between items
-  const w = imgWidth + MARGIN_INCHES;
-  const h = imgLength + MARGIN_INCHES;
+  const w = imgWidth + margin;
+  const h = imgLength + margin;
 
   // Orientation 1: width along roll
-  const cols1 = Math.floor(PRINTABLE_WIDTH / w);
+  const cols1 = Math.floor(printableWidth / w);
   let length1 = Infinity;
   if (cols1 > 0) {
     const rows1 = Math.ceil(qty / cols1);
@@ -34,7 +34,7 @@ function bestContinuousLayout(imgWidth, imgLength, qty) {
   }
 
   // Orientation 2: rotated
-  const cols2 = Math.floor(PRINTABLE_WIDTH / h);
+  const cols2 = Math.floor(printableWidth / h);
   let length2 = Infinity;
   if (cols2 > 0) {
     const rows2 = Math.ceil(qty / cols2);
@@ -61,7 +61,7 @@ function bestContinuousLayout(imgWidth, imgLength, qty) {
  * @param {Array<Object>} images - Array of image objects from imageProcessor
  * @returns {Object} { totalWidth, totalLength, imageCount, sheetDetails }
  */
-export function calculatePackedDimensions(images) {
+export function calculatePackedDimensions(images, printableWidth = 22.5, margin = 0.2) {
   if (!images || images.length === 0) {
     return { totalWidth: 0, totalLength: 0, imageCount: 0, sheetDetails: [] };
   }
@@ -78,7 +78,7 @@ export function calculatePackedDimensions(images) {
 
   validImages.forEach(img => {
     const qty = img.quantity || 1;
-    const layout = bestContinuousLayout(img.width, img.length, qty);
+    const layout = bestContinuousLayout(img.width, img.length, qty, printableWidth, margin);
 
     let imgLength = layout.lengthConsumed;
     totalLength += imgLength;

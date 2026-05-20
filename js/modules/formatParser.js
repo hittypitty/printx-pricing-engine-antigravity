@@ -42,7 +42,7 @@ export function resolveDimensions(format, quantity, rawLength) {
   if (!fmt) return null;
 
   const isSheetFormat = format !== 'Meters';
-  const length = isSheetFormat ? fmt.length : parseLength(rawLength);
+  const length = (format === 'Meters' || format === 'Custom') ? parseLength(rawLength) : fmt.length;
   const qty = isSheetFormat ? quantity : 1;
 
   return {
@@ -50,7 +50,7 @@ export function resolveDimensions(format, quantity, rawLength) {
     pricingWidth: fmt.pricingWidth,
     length,
     quantity: qty,
-    totalMeters: length / 39,
+    totalMeters: (length * qty) / 39,
     totalSqInches: fmt.pricingWidth * length * qty,
     isSheetFormat,
   };

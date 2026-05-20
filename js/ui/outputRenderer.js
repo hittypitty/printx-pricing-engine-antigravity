@@ -13,8 +13,12 @@ export function init(container) {
 function buildHTML(state) {
   const deliveryCost = state.shippingCost + state.packagingCost;
   const deliveryText = state.deliveryMethod === 'pickup' ? 'Free' : '₹' + deliveryCost;
-  const deliveryKpiSub = state.deliveryMethod === 'pickup' ? 'Office Pickup' : `ETA: ${state.eta} (${state.countedWeight} kg)`;
+  const deliveryKpiSub = state.deliveryMethod === 'pickup' ? `Office Pickup<br>Weight: ${state.countedWeight} kg` : `ETA: ${state.eta} (${state.countedWeight} kg)`;
   const effectiveRate = state.effectiveRate || '0.00';
+  const isUVAuto = state.printTechnology === 'uv_dtf' && (state.inputMode === 'image' || state.inputMode === 'manual-size');
+  const metricLabelText = isUVAuto ? 'Sheets Required' : (state.isSheetFormat ? 'Quantity' : 'Total Running');
+  const metricValueText = isUVAuto ? `${state.quantity} sheets` : (state.isSheetFormat ? state.quantity + ' pcs' : state.totalMeters.toFixed(3) + 'm');
+  const metricSubText = isUVAuto ? `${state.stickersPerSheet || 0} pcs / sheet` : (state.isSheetFormat ? '@ ₹' + state.rateApplied + ' / pc' : '@ ₹' + state.rateApplied + ' / m');
 
   return `
     <div class="card">
@@ -36,16 +40,16 @@ function buildHTML(state) {
         </h2>
       </div>
       <div class="card-body">
-        <div class="kpi-grid" style="grid-template-columns: 1fr 1fr 1.2fr;">
+        <div class="kpi-grid" style="grid-template-columns: 1.2fr 0.9fr 0.9fr;">
           <div class="kpi-block">
-            <div class="kpi-label" id="kpi-metric-label">${state.isSheetFormat ? 'Quantity' : 'Total Running'}</div>
-            <div class="kpi-value" id="kpi-metric-value">${state.isSheetFormat ? state.quantity + ' pcs' : state.totalMeters.toFixed(3) + 'm'}</div>
-            <div class="kpi-sub" id="kpi-metric-sub">${state.isSheetFormat ? '' : '@ ₹' + state.rateApplied + ' / m'}</div>
+            <div class="kpi-label" id="kpi-metric-label">${metricLabelText}</div>
+            <div class="kpi-value" id="kpi-metric-value">${metricValueText}</div>
+            <div class="kpi-sub" id="kpi-metric-sub">${metricSubText}</div>
           </div>
           <div class="kpi-block">
             <div class="kpi-label">Print Cost</div>
             <div class="kpi-value" id="kpi-print-cost" style="color: var(--accent-purple);">₹${state.printCost}</div>
-            <div class="kpi-sub" id="kpi-print-sub">Running Meter</div>
+            <div class="kpi-sub" id="kpi-print-sub">${state.methodLabel || 'Running Meter'}</div>
           </div>
           <div class="kpi-block kpi-delivery">
             <div class="kpi-label">Shipping & Pkg</div>
@@ -60,7 +64,7 @@ function buildHTML(state) {
           <div class="breakdown-section" style="margin-bottom: 0;">
             <div class="breakdown-title" style="font-size: 15px; color: var(--text-secondary); margin-bottom: 12px; font-weight: 500;">Cost Breakdown</div>
             <div style="display: flex; flex-direction: column; gap: 8px;">
-              <div class="breakdown-badge breakdown-print-badge" id="breakdown-print">Print: ${state.isSheetFormat ? state.quantity + ' pcs' : state.totalMeters.toFixed(2) + ' meters'} × ₹${state.rateApplied} / m</div>
+              <div class="breakdown-badge breakdown-print-badge" id="breakdown-print">Print: ${state.isSheetFormat ? state.quantity + ' pcs × ₹' + state.rateApplied + ' / pc' : state.totalMeters.toFixed(2) + ' meters × ₹' + state.rateApplied + ' / m'}</div>
               <div class="breakdown-badge" id="breakdown-conversion-row" style="display: ${state.conversions && state.conversions.length > 0 ? 'inline-block' : 'none'}; background: #e0e7ff; color: #4338ca;">Conv: ${state.conversionBreakdown}</div>
               <div class="breakdown-badge breakdown-delivery-badge" id="breakdown-delivery-row" style="display: ${state.deliveryMethod === 'pickup' ? 'none' : 'inline-block'};">Ship: ${state.shippingBreakdown || state.partnerName} + ₹${state.packagingCost} Pkg</div>
             </div>
@@ -80,31 +84,37 @@ function buildHTML(state) {
 function updateDOM(container, state) {
   const deliveryCost = state.shippingCost + state.packagingCost;
   const deliveryText = state.deliveryMethod === 'pickup' ? 'Free' : '₹' + deliveryCost;
-  const deliveryKpiSub = state.deliveryMethod === 'pickup' ? 'Office Pickup' : `ETA: ${state.eta} (${state.countedWeight} kg)`;
+  const deliveryKpiSub = state.deliveryMethod === 'pickup' ? `Office Pickup<br>Weight: ${state.countedWeight} kg` : `ETA: ${state.eta} (${state.countedWeight} kg)`;
   const effectiveRate = state.effectiveRate || '0.00';
+
+  const isUVAuto = state.printTechnology === 'uv_dtf' && (state.inputMode === 'image' || state.inputMode === 'manual-size');
 
   // KPI blocks
   const metricLabel = container.querySelector('#kpi-metric-label');
   const metricValue = container.querySelector('#kpi-metric-value');
   const metricSub = container.querySelector('#kpi-metric-sub');
-  if (metricLabel) metricLabel.textContent = state.isSheetFormat ? 'Quantity' : 'Total Running';
-  if (metricValue) metricValue.textContent = state.isSheetFormat ? state.quantity + ' pcs' : state.totalMeters.toFixed(3) + 'm';
-  if (metricSub) metricSub.textContent = state.isSheetFormat ? '' : '@ ₹' + state.rateApplied + ' / m';
-
+  if (metricLabel) metricLabel.textContent = isUVAuto ? 'Sheets Required' : (state.isSheetFormat ? 'Quantity' : 'Total Running');
+  if (metricValue) metricValue.textContent = isUVAuto ? `${state.quantity} sheets` : (state.isSheetFormat ? state.quantity + ' pcs' : state.totalMeters.toFixed(3) + 'm');
+  if (metricSub) {
+    metricSub.textContent = isUVAuto
+      ? `${state.stickersPerSheet || 0} pcs / sheet`
+      : (state.isSheetFormat ? '@ ₹' + state.rateApplied + ' / pc' : '@ ₹' + state.rateApplied + ' / m');
+  }
+ 
   const printCost = container.querySelector('#kpi-print-cost');
   const printSub = container.querySelector('#kpi-print-sub');
   if (printCost) printCost.textContent = '₹' + state.printCost;
-  if (printSub) printSub.textContent = 'Running Meter';
+  if (printSub) printSub.textContent = state.methodLabel || 'Running Meter';
 
   const delCost = container.querySelector('#kpi-delivery-cost');
   const delSub = container.querySelector('#kpi-delivery-sub');
   if (delCost) delCost.textContent = deliveryText;
-  if (delSub) delSub.textContent = deliveryKpiSub;
+  if (delSub) delSub.innerHTML = deliveryKpiSub;
 
   // Breakdown badges
   const bPrint = container.querySelector('#breakdown-print');
   if (bPrint) {
-    bPrint.textContent = 'Print: ' + (state.isSheetFormat ? state.quantity + ' pcs' : state.totalMeters.toFixed(2) + ' meters') + ' × ₹' + state.rateApplied + ' / m';
+    bPrint.textContent = 'Print: ' + (state.isSheetFormat ? state.quantity + ' pcs × ₹' + state.rateApplied + ' / pc' : state.totalMeters.toFixed(2) + ' meters × ₹' + state.rateApplied + ' / m');
   }
 
   const bDelRow = container.querySelector('#breakdown-delivery-row');

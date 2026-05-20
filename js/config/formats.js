@@ -13,4 +13,5 @@ export const FORMATS = {
   A3:     { printableWidth: 11,   pricingWidth: 11,   length: 16,   fixedPrice: 120, label: 'A3' },
   A2:     { printableWidth: 22.5, pricingWidth: 22.5, length: 16.5, fixedPrice: 250, label: 'A2' },
   Meters: { printableWidth: PRINTABLE_WIDTH, pricingWidth: ROLL_WIDTH, length: null, fixedPrice: null, label: 'Meters' },
+  Custom: { printableWidth: 11,              pricingWidth: 11,         length: null, fixedPrice: null, label: 'Custom' },
 };

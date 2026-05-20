@@ -16,13 +16,16 @@ export function generateQuote(state) {
     isSheetFormat, rateApplied, methodLabel,
     deliveryMethod, partnerName, shippingCost, countedWeight, eta,
     packagingCost, printCost, conversionCost, designCount, finalTotal,
+    printTechnology, uvPrintType,
   } = state;
 
   const lines = [];
 
   lines.push('Hello! 🌟 Thank you for reaching out to us.');
   lines.push('');
-  lines.push('Here is the quote for your DTF print requirement:');
+  
+  const techLabel = printTechnology === 'uv_dtf' ? `UV DTF (${uvPrintType === '3d' ? '3D' : 'Normal'})` : 'Fabric DTF';
+  lines.push(`Here is the quote for your ${techLabel} print requirement:`);
   lines.push(`📏 Size: ${format} (${pricingWidth}" x ${length}")`);
 
   if (isSheetFormat) {

@@ -75,7 +75,7 @@ function buildHTML(state) {
         </h2>
       </div>
       <div class="card-body">
-        <div class="kpi-grid" style="grid-template-columns: 1fr 1fr 1.2fr;">
+        <div class="kpi-grid" style="grid-template-columns: 1.2fr 0.9fr 0.9fr;">
           <div class="kpi-block">
             <div class="kpi-label" id="kpi-metric-label">${state.isSheetFormat ? 'Quantity' : 'Total Running'}</div>
             <div class="kpi-value" id="kpi-metric-value">${state.isSheetFormat ? state.quantity + ' pcs' : state.totalMeters.toFixed(3) + 'm'}</div>
