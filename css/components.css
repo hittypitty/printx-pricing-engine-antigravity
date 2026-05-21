@@ -114,7 +114,8 @@ select.input-field {
   border: none;
   border-radius: 0;
   text-align: center;
-  padding: 12px 4px;
+  padding: 0 var(--space-xs);
+  height: 100%;
 }
 
 .number-input-group .input-field:focus {
