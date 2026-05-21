@@ -8,10 +8,86 @@ import { getConfig } from '../state/configStore.js';
 import { validateInputs } from '../modules/validationEngine.js';
 import { resolveDimensions } from '../modules/formatParser.js';
 import { calculatePrintCost, calculateConversionCost } from '../modules/pricingEngine.js';
-import { calculateAllShipping, getPackagingCost, getBestCourier, getUVDTFWeight, getFabricWeight } from '../modules/deliveryEngine.js';
+import { calculateAllShipping, getPackagingCost, getBestCourier, getUVDTFWeight, getFabricWeight, calculateUVDTFA3EquivalentSheets } from '../modules/deliveryEngine.js';
 import { calculatePackedDimensions } from '../modules/packingEngine.js';
 import { generateQuote } from '../modules/quoteGenerator.js';
 import { update, getState } from '../state/store.js';
+function calculateCart(cart, deliveryMethod, courierFilter, selectedPartner) {
+  const totalPrintCost = cart.reduce((sum, item) => sum + item.printCost, 0);
+  const totalConversionCost = cart.reduce((sum, item) => sum + item.conversionCost, 0);
+
+  // 1. UV DTF sheets weight
+  const totalUVA3Sheets = cart
+    .filter(item => item.printTechnology === 'uv_dtf')
+    .reduce((sum, item) => sum + calculateUVDTFA3EquivalentSheets(item.format, item.quantity, item.length), 0);
+  const uvWeight = totalUVA3Sheets > 0 ? getUVDTFWeight('A3', totalUVA3Sheets, 16) : 0;
+
+  // 2. Fabric DTF meters weight
+  const totalFabricMeters = cart
+    .filter(item => item.printTechnology === 'fabric')
+    .reduce((sum, item) => sum + (item.totalMeters || 0), 0);
+  const fabricWeight = totalFabricMeters > 0 ? getFabricWeight(totalFabricMeters) : 0;
+
+  const combinedWeightVal = uvWeight + fabricWeight;
+
+  // Delivery details:
+  const packagingCost = getPackagingCost(deliveryMethod);
+  const allPartnerResults = deliveryMethod === 'courier'
+    ? calculateAllShipping(totalFabricMeters, 1, courierFilter, combinedWeightVal)
+    : [];
+
+  let selected = null;
+  let recommendedPartner = null;
+  if (deliveryMethod === 'courier' && allPartnerResults.length > 0) {
+    recommendedPartner = getBestCourier(allPartnerResults);
+    selected = selectedPartner
+      ? allPartnerResults.find(p => p.partnerKey === selectedPartner) || allPartnerResults.find(p => p.partnerKey === recommendedPartner)
+      : allPartnerResults.find(p => p.partnerKey === recommendedPartner);
+  }
+
+  const shippingCost = selected ? selected.shippingCost : 0;
+  const partnerName = selected ? selected.partnerName : 'Office Pickup';
+  const countedWeight = selected ? selected.countedWeight : Math.round(combinedWeightVal * 100) / 100;
+  const eta = selected ? selected.eta : '';
+  const shippingBreakdown = selected ? selected.breakdown : '';
+  const finalTotal = Math.ceil(totalPrintCost + totalConversionCost + packagingCost + shippingCost);
+
+  // Print breakdown for cart
+  const printBreakdown = cart.map(item => {
+    if (item.format === 'Meters') {
+      return `${item.totalMeters.toFixed(2)}m Fabric (₹${item.printCost})`;
+    }
+    const tech = item.printTechnology === 'uv_dtf' ? 'UV ' : '';
+    return `${tech}${item.format} × ${item.quantity} (₹${item.printCost})`;
+  }).join(' + ');
+
+  // Conversion breakdown for cart
+  const conversionBreakdown = cart
+    .filter(item => item.conversionCost > 0)
+    .map(item => `${item.format}: ${item.conversionBreakdown}`)
+    .join(' | ') || 'None';
+
+  const totalSqInches = cart.reduce((sum, item) => sum + (item.totalSqInches || 0), 0);
+  const effectiveRate = totalSqInches > 0 ? (totalPrintCost / totalSqInches).toFixed(2) : '0.00';
+
+  return {
+    printCost: totalPrintCost,
+    printBreakdown,
+    conversionCost: totalConversionCost,
+    conversionBreakdown,
+    packagingCost,
+    shippingCost,
+    partnerName,
+    countedWeight,
+    eta,
+    shippingBreakdown,
+    allPartnerResults,
+    recommendedPartner,
+    selectedPartner: selected ? selected.partnerKey : null,
+    finalTotal,
+    effectiveRate
+  };
+}
 
 /**
  * Helper to calculate required sheets and stickers per sheet for UV DTF.
@@ -276,7 +352,7 @@ export function recalculate() {
     const shippingBreakdown = selected ? selected.breakdown : '';
     const finalTotal = Math.ceil(pricing.printCost + conversion.conversionCost + packagingCost + shippingCost);
 
-    update({
+    const updateObj = {
       isValid: true, validationError: null,
       format: bestFormat,
       ...dims,
@@ -291,7 +367,16 @@ export function recalculate() {
       allPartnerResults, recommendedPartner,
       selectedPartner: selected ? selected.partnerKey : null,
       finalTotal,
-    });
+      activePrintCost: pricing.printCost,
+      activeConversionCost: conversion.conversionCost
+    };
+
+    if (s.cart && s.cart.length > 0) {
+      const cartResults = calculateCart(s.cart, s.deliveryMethod, s.courierFilter, s.selectedPartner);
+      Object.assign(updateObj, cartResults);
+    }
+
+    update(updateObj);
 
     const quoteText = generateQuote(getState());
     update({ quoteText });
@@ -388,8 +473,7 @@ export function recalculate() {
   // Step 6: Final total = printCost + conversionCost + packagingCost + shippingCost
   const finalTotal = Math.ceil(pricing.printCost + conversion.conversionCost + packagingCost + shippingCost);
 
-  // Step 7: Write all computed values to state
-  update({
+  const updateObj = {
     ...dims,
     printCost: pricing.printCost,
     effectiveRate: pricing.effectiveRate,
@@ -408,7 +492,17 @@ export function recalculate() {
     recommendedPartner,
     selectedPartner: selected ? selected.partnerKey : null,
     finalTotal,
-  });
+    activePrintCost: pricing.printCost,
+    activeConversionCost: conversion.conversionCost
+  };
+
+  if (s.cart && s.cart.length > 0) {
+    const cartResults = calculateCart(s.cart, s.deliveryMethod, s.courierFilter, s.selectedPartner);
+    Object.assign(updateObj, cartResults);
+  }
+
+  // Step 7: Write all computed values to state
+  update(updateObj);
 
   // Step 8: Generate quote (needs the full state just written)
   const quoteText = generateQuote(getState());
@@ -643,5 +737,73 @@ export function setPrintTechnology(tech) {
 
 export function setUvPrintType(type) {
   update({ uvPrintType: type });
+  recalculate();
+}
+
+export function addToCart() {
+  const s = getState();
+  if (!s.isValid) return;
+
+  const itemId = Date.now().toString() + Math.random().toString(36).substr(2, 5);
+
+  const printCost = s.activePrintCost !== undefined ? s.activePrintCost : s.printCost;
+  const conversionCost = s.activeConversionCost !== undefined ? s.activeConversionCost : s.conversionCost;
+
+  const itemWeight = s.printTechnology === 'uv_dtf'
+    ? getUVDTFWeight(s.format, s.quantity, s.length)
+    : getFabricWeight(s.totalMeters);
+
+  const cartItem = {
+    id: itemId,
+    printTechnology: s.printTechnology,
+    uvPrintType: s.uvPrintType,
+    format: s.format,
+    printableWidth: s.printableWidth,
+    pricingWidth: s.pricingWidth,
+    length: s.length,
+    totalMeters: s.totalMeters,
+    totalSqInches: s.totalSqInches,
+    isSheetFormat: s.isSheetFormat,
+    quantity: s.quantity,
+    printCost,
+    rateApplied: s.rateApplied,
+    methodLabel: s.methodLabel,
+    printBreakdown: s.printBreakdown,
+    conversionCost,
+    conversionBreakdown: s.conversionBreakdown,
+    conversions: JSON.parse(JSON.stringify(s.conversions || [])),
+    designCount: s.designCount,
+    weight: itemWeight
+  };
+
+  const newCart = [...(s.cart || []), cartItem];
+
+  update({
+    cart: newCart,
+    // Reset active config inputs
+    format: 'A4',
+    rawLength: '',
+    quantity: 1,
+    conversions: [],
+    images: [],
+    manualSizes: [{ id: 'default-ms-1', width: '', height: '', qty: 1 }],
+    inputMode: 'manual',
+    computedImageLength: 0,
+    computedImageWidth: 0,
+    designCount: 0
+  });
+
+  recalculate();
+}
+
+export function removeFromCart(id) {
+  const s = getState();
+  const newCart = (s.cart || []).filter(item => item.id !== id);
+  update({ cart: newCart });
+  recalculate();
+}
+
+export function clearCart() {
+  update({ cart: [] });
   recalculate();
 }

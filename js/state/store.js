@@ -15,6 +15,7 @@ const state = {
   rawLength: '',
   quantity: 1,
   conversions: [], // Array of { id, type, qty }
+  cart: [], // Array of cart items for mixed orders
   designCount: 0,
   deliveryMethod: 'pickup',
   selectedPartner: null,

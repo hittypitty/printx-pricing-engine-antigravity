@@ -16,9 +16,20 @@ function buildHTML(state) {
   const deliveryKpiSub = state.deliveryMethod === 'pickup' ? `Office Pickup<br>Weight: ${state.countedWeight} kg` : `ETA: ${state.eta} (${state.countedWeight} kg)`;
   const effectiveRate = state.effectiveRate || '0.00';
   const isUVAuto = state.printTechnology === 'uv_dtf' && (state.inputMode === 'image' || state.inputMode === 'manual-size');
-  const metricLabelText = isUVAuto ? 'Sheets Required' : (state.isSheetFormat ? 'Quantity' : 'Total Running');
-  const metricValueText = isUVAuto ? `${state.quantity} sheets` : (state.isSheetFormat ? state.quantity + ' pcs' : state.totalMeters.toFixed(3) + 'm');
-  const metricSubText = isUVAuto ? `${state.stickersPerSheet || 0} pcs / sheet` : (state.isSheetFormat ? '@ ₹' + state.rateApplied + ' / pc' : '@ ₹' + state.rateApplied + ' / m');
+  
+  const hasCart = state.cart && state.cart.length > 0;
+  const metricLabelText = hasCart
+    ? 'Items in Cart'
+    : (isUVAuto ? 'Sheets Required' : (state.isSheetFormat ? 'Quantity' : 'Total Running'));
+  const metricValueText = hasCart
+    ? `${state.cart.length} item(s)`
+    : (isUVAuto ? `${state.quantity} sheets` : (state.isSheetFormat ? state.quantity + ' pcs' : state.totalMeters.toFixed(3) + 'm'));
+  const metricSubText = hasCart
+    ? `${state.cart.reduce((sum, item) => sum + (item.isSheetFormat ? item.quantity : 1), 0)} items total`
+    : (isUVAuto ? `${state.stickersPerSheet || 0} pcs / sheet` : (state.isSheetFormat ? '@ ₹' + state.rateApplied + ' / pc' : '@ ₹' + state.rateApplied + ' / m'));
+
+  const printSubText = hasCart ? 'Mixed Order' : (state.methodLabel || 'Running Meter');
+  const showConversion = hasCart ? state.conversionCost > 0 : (state.conversions && state.conversions.length > 0);
 
   return `
     <div class="card">
@@ -49,7 +60,7 @@ function buildHTML(state) {
           <div class="kpi-block">
             <div class="kpi-label">Print Cost</div>
             <div class="kpi-value" id="kpi-print-cost" style="color: var(--accent-purple);">₹${state.printCost}</div>
-            <div class="kpi-sub" id="kpi-print-sub">${state.methodLabel || 'Running Meter'}</div>
+            <div class="kpi-sub" id="kpi-print-sub">${printSubText}</div>
           </div>
           <div class="kpi-block kpi-delivery">
             <div class="kpi-label">Shipping & Pkg</div>
@@ -64,8 +75,10 @@ function buildHTML(state) {
           <div class="breakdown-section" style="margin-bottom: 0;">
             <div class="breakdown-title" style="font-size: 15px; color: var(--text-secondary); margin-bottom: 12px; font-weight: 500;">Cost Breakdown</div>
             <div style="display: flex; flex-direction: column; gap: 8px;">
-              <div class="breakdown-badge breakdown-print-badge" id="breakdown-print">Print: ${state.isSheetFormat ? state.quantity + ' pcs × ₹' + state.rateApplied + ' / pc' : state.totalMeters.toFixed(2) + ' meters × ₹' + state.rateApplied + ' / m'}</div>
-              <div class="breakdown-badge" id="breakdown-conversion-row" style="display: ${state.conversions && state.conversions.length > 0 ? 'inline-block' : 'none'}; background: #e0e7ff; color: #4338ca;">Conv: ${state.conversionBreakdown}</div>
+              <div class="breakdown-badge breakdown-print-badge" id="breakdown-print">
+                ${hasCart ? 'Print: ' + state.printBreakdown : 'Print: ' + (state.isSheetFormat ? state.quantity + ' pcs × ₹' + state.rateApplied + ' / pc' : state.totalMeters.toFixed(2) + ' meters × ₹' + state.rateApplied + ' / m')}
+              </div>
+              <div class="breakdown-badge" id="breakdown-conversion-row" style="display: ${showConversion ? 'inline-block' : 'none'}; background: #e0e7ff; color: #4338ca;">Conv: ${state.conversionBreakdown}</div>
               <div class="breakdown-badge breakdown-delivery-badge" id="breakdown-delivery-row" style="display: ${state.deliveryMethod === 'pickup' ? 'none' : 'inline-block'};">Ship: ${state.shippingBreakdown || state.partnerName} + ₹${state.packagingCost} Pkg</div>
             </div>
             <div id="breakdown-effective-rate" style="font-size: 12px; color: var(--text-muted); margin-top: 10px;">Effective print rate: ₹${effectiveRate} / sq in</div>
@@ -88,23 +101,37 @@ function updateDOM(container, state) {
   const effectiveRate = state.effectiveRate || '0.00';
 
   const isUVAuto = state.printTechnology === 'uv_dtf' && (state.inputMode === 'image' || state.inputMode === 'manual-size');
+  
+  const hasCart = state.cart && state.cart.length > 0;
 
   // KPI blocks
   const metricLabel = container.querySelector('#kpi-metric-label');
   const metricValue = container.querySelector('#kpi-metric-value');
   const metricSub = container.querySelector('#kpi-metric-sub');
-  if (metricLabel) metricLabel.textContent = isUVAuto ? 'Sheets Required' : (state.isSheetFormat ? 'Quantity' : 'Total Running');
-  if (metricValue) metricValue.textContent = isUVAuto ? `${state.quantity} sheets` : (state.isSheetFormat ? state.quantity + ' pcs' : state.totalMeters.toFixed(3) + 'm');
-  if (metricSub) {
-    metricSub.textContent = isUVAuto
-      ? `${state.stickersPerSheet || 0} pcs / sheet`
-      : (state.isSheetFormat ? '@ ₹' + state.rateApplied + ' / pc' : '@ ₹' + state.rateApplied + ' / m');
+  if (metricLabel) {
+    metricLabel.textContent = hasCart
+      ? 'Items in Cart'
+      : (isUVAuto ? 'Sheets Required' : (state.isSheetFormat ? 'Quantity' : 'Total Running'));
   }
- 
+  if (metricValue) {
+    metricValue.textContent = hasCart
+      ? `${state.cart.length} item(s)`
+      : (isUVAuto ? `${state.quantity} sheets` : (state.isSheetFormat ? state.quantity + ' pcs' : state.totalMeters.toFixed(3) + 'm'));
+  }
+  if (metricSub) {
+    metricSub.textContent = hasCart
+      ? `${state.cart.reduce((sum, item) => sum + (item.isSheetFormat ? item.quantity : 1), 0)} items total`
+      : (isUVAuto ? `${state.stickersPerSheet || 0} pcs / sheet` : (state.isSheetFormat ? '@ ₹' + state.rateApplied + ' / pc' : '@ ₹' + state.rateApplied + ' / m'));
+  }
+
   const printCost = container.querySelector('#kpi-print-cost');
   const printSub = container.querySelector('#kpi-print-sub');
   if (printCost) printCost.textContent = '₹' + state.printCost;
-  if (printSub) printSub.textContent = state.methodLabel || 'Running Meter';
+  if (printSub) {
+    printSub.textContent = hasCart
+      ? 'Mixed Order'
+      : (state.methodLabel || 'Running Meter');
+  }
 
   const delCost = container.querySelector('#kpi-delivery-cost');
   const delSub = container.querySelector('#kpi-delivery-sub');
@@ -114,7 +141,9 @@ function updateDOM(container, state) {
   // Breakdown badges
   const bPrint = container.querySelector('#breakdown-print');
   if (bPrint) {
-    bPrint.textContent = 'Print: ' + (state.isSheetFormat ? state.quantity + ' pcs × ₹' + state.rateApplied + ' / pc' : state.totalMeters.toFixed(2) + ' meters × ₹' + state.rateApplied + ' / m');
+    bPrint.textContent = hasCart
+      ? 'Print: ' + state.printBreakdown
+      : 'Print: ' + (state.isSheetFormat ? state.quantity + ' pcs × ₹' + state.rateApplied + ' / pc' : state.totalMeters.toFixed(2) + ' meters × ₹' + state.rateApplied + ' / m');
   }
 
   const bDelRow = container.querySelector('#breakdown-delivery-row');
@@ -125,7 +154,8 @@ function updateDOM(container, state) {
 
   const bConvRow = container.querySelector('#breakdown-conversion-row');
   if (bConvRow) {
-    bConvRow.style.display = state.conversions && state.conversions.length > 0 ? 'inline-block' : 'none';
+    const hasConv = hasCart ? state.conversionCost > 0 : (state.conversions && state.conversions.length > 0);
+    bConvRow.style.display = hasConv ? 'inline-block' : 'none';
     bConvRow.textContent = 'Conv: ' + state.conversionBreakdown;
   }
 

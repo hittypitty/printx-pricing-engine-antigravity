@@ -16,8 +16,77 @@ export function generateQuote(state) {
     isSheetFormat, rateApplied, methodLabel,
     deliveryMethod, partnerName, shippingCost, countedWeight, eta,
     packagingCost, printCost, conversionCost, designCount, finalTotal,
-    printTechnology, uvPrintType,
+    printTechnology, uvPrintType, cart
   } = state;
+
+  if (cart && cart.length > 0) {
+    const lines = [];
+    lines.push('Hello! 🌟 Thank you for reaching out to us.');
+    lines.push('');
+    
+    const hasFabric = cart.some(item => item.printTechnology === 'fabric');
+    const hasUV = cart.some(item => item.printTechnology === 'uv_dtf');
+    let techHeader = 'print';
+    if (hasFabric && !hasUV) techHeader = 'Fabric DTF print';
+    if (hasUV && !hasFabric) techHeader = 'UV DTF print';
+    
+    lines.push(`Here is the quote for your ${techHeader} requirement:`);
+    lines.push('');
+    lines.push('🛒 *Items:*');
+
+    cart.forEach((item, index) => {
+      const itemTech = item.printTechnology === 'uv_dtf' 
+        ? `UV DTF (${item.uvPrintType === '3d' ? '3D' : 'Normal'})` 
+        : 'Fabric DTF';
+      const formatLabel = item.format === 'Meters' 
+        ? `Meters (24" x ${item.length}")` 
+        : `${item.format} (${item.pricingWidth}" x ${item.length}")`;
+      
+      lines.push(`${index + 1}. ${itemTech} — ${formatLabel}`);
+      
+      if (item.isSheetFormat) {
+        lines.push(`   • Quantity: ${item.quantity} piece(s)`);
+      } else {
+        lines.push(`   • Total Running: ${item.totalMeters.toFixed(2)} meters`);
+      }
+      
+      lines.push(`   • Print Cost: ₹${item.printCost}`);
+      
+      if (item.conversions && item.conversions.length > 0) {
+        lines.push(`   • Conversions: ${item.conversionBreakdown}`);
+      }
+    });
+
+    lines.push('');
+    lines.push(`🖨️ Total Print Cost: ₹${printCost}`);
+    if (conversionCost > 0) {
+      lines.push(`✨ Total Conversion Cost: ₹${conversionCost}`);
+    }
+
+    if (deliveryMethod === 'pickup') {
+      lines.push('🏢 Delivery: Office Pickup (Free)');
+    } else {
+      lines.push(`🚚 Delivery Cost: ₹${shippingCost + packagingCost} (${partnerName} - ETA: ${eta})`);
+    }
+
+    lines.push('');
+    lines.push(`💰 *Final Total: ₹${finalTotal}*`);
+    
+    if (deliveryMethod !== 'pickup') {
+      lines.push('');
+      lines.push('📦 _Note:_');
+      lines.push('_Delivery charges are estimated based on current weight._');
+      lines.push('_Final charges may vary after packaging._');
+      lines.push('_Our team will confirm before dispatch._');
+    }
+
+    lines.push('');
+    lines.push('To proceed with the order, please make the payment via UPI/Bank Transfer and share the receipt.');
+    lines.push('');
+    lines.push('Let us know if you have any questions! Have a great day. 😊');
+
+    return lines.join('\n');
+  }
 
   const lines = [];
 

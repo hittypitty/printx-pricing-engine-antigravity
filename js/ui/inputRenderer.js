@@ -4,7 +4,7 @@
  */
 
 import { subscribe, getState } from '../state/store.js';
-import { onInputChange, onImagesUpdated, addConversion, updateConversion, removeConversion, setDesignTab, addManualSize, updateManualSize, removeManualSize, overrideImageWidth, setPrintTechnology, setUvPrintType } from '../controller/appController.js';
+import { onInputChange, onImagesUpdated, addConversion, updateConversion, removeConversion, setDesignTab, addManualSize, updateManualSize, removeManualSize, overrideImageWidth, setPrintTechnology, setUvPrintType, addToCart, removeFromCart, clearCart } from '../controller/appController.js';
 import { processImage } from '../modules/imageProcessor.js';
 import { parseLength } from '../modules/formatParser.js';
 
@@ -201,6 +201,33 @@ function buildHTML(state) {
         </div>
 
         <div class="validation-error" id="validation-error" style="display: none"></div>
+        
+        <button class="btn btn-primary" id="btn-add-to-cart" data-action="add-to-cart" style="width: 100%; margin-top: var(--space-xl); font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          Add to Quote
+        </button>
+      </div>
+    </div>
+
+    <div class="card" id="cart-card" style="display: ${state.cart && state.cart.length > 0 ? 'block' : 'none'};">
+      <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <h2 class="card-title">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="card-icon">
+            <circle cx="9" cy="21" r="1"></circle>
+            <circle cx="20" cy="21" r="1"></circle>
+            <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+          </svg>
+          Quote Items
+        </h2>
+        <button class="btn-clear-cart" data-action="clear-cart" style="background: none; border: none; color: #ef4444; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 4px; font-weight: 500; padding: 4px 8px; border-radius: 4px;">
+          ✕ Clear All
+        </button>
+      </div>
+      <div class="card-body" style="padding-top: 0;">
+        <div id="cart-items-list" style="display: flex; flex-direction: column; gap: 12px; margin-top: 12px;"></div>
       </div>
     </div>
 
@@ -337,6 +364,15 @@ function handleClick(e) {
       if (ms && ms.qty > 1) updateManualSize(ms.id, 'qty', ms.qty - 1);
       break;
     }
+    case 'add-to-cart':
+      addToCart();
+      break;
+    case 'clear-cart':
+      clearCart();
+      break;
+    case 'remove-cart-item':
+      removeFromCart(btn.dataset.id);
+      break;
   }
 }
 
@@ -654,6 +690,53 @@ function updateDOM(container, state) {
   const cardsContainer = container.querySelector('#partner-cards-container');
   if (cardsContainer && state.deliveryMethod === 'courier') {
     renderPartnerCards(cardsContainer, state);
+  }
+
+  // Update Cart Card and Cart List DOM elements
+  const btnAddToCart = container.querySelector('#btn-add-to-cart');
+  if (btnAddToCart) {
+    btnAddToCart.disabled = !state.isValid;
+  }
+
+  const cartCard = container.querySelector('#cart-card');
+  if (cartCard) {
+    const hasItems = state.cart && state.cart.length > 0;
+    cartCard.style.display = hasItems ? 'block' : 'none';
+  }
+
+  const cartList = container.querySelector('#cart-items-list');
+  if (cartList && state.cart) {
+    cartList.innerHTML = state.cart.map(item => {
+      const itemTech = item.printTechnology === 'uv_dtf'
+        ? `UV DTF (${item.uvPrintType === '3d' ? '3D' : 'Normal'})`
+        : 'Fabric DTF';
+      const formatLabel = item.format === 'Meters'
+        ? `Meters (24" x ${item.length}")`
+        : `${item.format} (${item.pricingWidth}" x ${item.length}")`;
+
+      const qtyText = item.isSheetFormat
+        ? `${item.quantity} pcs`
+        : `${item.totalMeters.toFixed(2)}m`;
+
+      const conversionText = item.conversions && item.conversions.length > 0
+        ? `<span>•</span><span>Conversions: ${item.conversionBreakdown}</span>`
+        : '';
+
+      return `
+        <div class="cart-item">
+          <div class="cart-item-details">
+            <div class="cart-item-title">${itemTech} — ${formatLabel}</div>
+            <div class="cart-item-sub">
+              <span>Qty/Length: ${qtyText}</span>
+              <span>•</span>
+              <span>Price: ₹${item.printCost}</span>
+              ${conversionText}
+            </div>
+          </div>
+          <button class="btn btn-icon" data-action="remove-cart-item" data-id="${item.id}" style="width: 36px; height: 36px; min-height: 36px; padding: 0; display: flex; align-items: center; justify-content: center; color: #ef4444; border: 1px solid #fecaca; background: #fef2f2; border-radius: 8px; flex-shrink: 0; cursor: pointer; transition: all var(--transition-fast);">✕</button>
+        </div>
+      `;
+    }).join('');
   }
 }
 
