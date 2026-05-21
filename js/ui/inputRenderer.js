@@ -47,6 +47,39 @@ export function init(container) {
       return;
     }
 
+    if (e.target.dataset.action === 'image-qty') {
+      const id = e.target.dataset.id;
+      const val = parseInt(e.target.value, 10);
+      const qty = isNaN(val) || val < 1 ? 1 : val;
+      const state = getState();
+      const newImages = state.images.map(img => img.id === id ? { ...img, quantity: qty } : img);
+      onImagesUpdated(newImages);
+      return;
+    }
+
+    if (e.target.dataset.action === 'manual-size-qty') {
+      const val = parseInt(e.target.value, 10);
+      updateManualSize(e.target.dataset.id, 'qty', isNaN(val) || val < 1 ? 1 : val);
+      return;
+    }
+
+    if (e.target.dataset.action === 'conversion-type') {
+      updateConversion(e.target.dataset.id, 'type', e.target.value);
+      return;
+    }
+
+    if (e.target.dataset.action === 'conversion-qty') {
+      const val = parseInt(e.target.value, 10);
+      updateConversion(e.target.dataset.id, 'qty', isNaN(val) || val < 1 ? 1 : val);
+      return;
+    }
+
+    if (e.target.dataset.field === 'quantity') {
+      const val = parseInt(e.target.value, 10);
+      onInputChange('quantity', isNaN(val) || val < 1 ? 1 : val);
+      return;
+    }
+
     if (e.target.id === 'image-upload-input') {
       const files = Array.from(e.target.files);
       if (files.length === 0) return;
@@ -380,46 +413,80 @@ function handleInput(e) {
   const field = e.target.dataset.field;
   
   if (e.target.dataset.action === 'image-qty') {
-    const id = e.target.dataset.id;
-    const val = parseInt(e.target.value, 10);
-    const qty = isNaN(val) || val < 1 ? 1 : val;
-    const state = getState();
-    const newImages = state.images.map(img => img.id === id ? { ...img, quantity: qty } : img);
-    onImagesUpdated(newImages);
-    return;
+    return; // Handled on 'change' event to prevent cursor jumping
   }
   
-  // Handled on 'change' event to allow unit parsing (mm, cm) and prevent focus loss
-  // if (e.target.dataset.action === 'manual-size-dim') { ... }
-  
   if (e.target.dataset.action === 'manual-size-qty') {
-    const val = parseInt(e.target.value, 10);
-    updateManualSize(e.target.dataset.id, 'qty', isNaN(val) || val < 1 ? 1 : val);
-    return;
+    return; // Handled on 'change' event to prevent cursor jumping
   }
   
   if (e.target.dataset.action === 'conversion-type') {
-    updateConversion(e.target.dataset.id, 'type', e.target.value);
-    return;
+    return; // Handled on 'change' event to prevent cursor jumping
   }
 
   if (e.target.dataset.action === 'conversion-qty') {
-    const val = parseInt(e.target.value, 10);
-    updateConversion(e.target.dataset.id, 'qty', isNaN(val) || val < 1 ? 1 : val);
-    return;
+    return; // Handled on 'change' event to prevent cursor jumping
   }
 
   if (!field) return;
 
   if (field === 'quantity') {
-    const val = parseInt(e.target.value, 10);
-    onInputChange(field, isNaN(val) || val < 1 ? 1 : val);
-  } else {
-    onInputChange(field, e.target.value);
+    return; // Handled on 'change' event to prevent cursor jumping
   }
+
+  onInputChange(field, e.target.value);
 }
 
 function updateDOM(container, state) {
+  // Save focus and selection info to prevent focus loss during DOM rebuilds
+  const activeElement = document.activeElement;
+  let focusSelector = null;
+  let cursorStart = null;
+  let cursorEnd = null;
+
+  if (activeElement && container.contains(activeElement)) {
+    if (activeElement.id) {
+      focusSelector = `#${activeElement.id}`;
+    } else {
+      const action = activeElement.dataset.action;
+      const id = activeElement.dataset.id;
+      const fieldType = activeElement.dataset.fieldtype;
+      const field = activeElement.dataset.field;
+      
+      if (action && id) {
+        if (fieldType) {
+          focusSelector = `[data-action="${action}"][data-id="${id}"][data-fieldtype="${fieldType}"]`;
+        } else {
+          focusSelector = `[data-action="${action}"][data-id="${id}"]`;
+        }
+      } else if (action) {
+        focusSelector = `[data-action="${action}"]`;
+      } else if (field) {
+        focusSelector = `[data-field="${field}"]`;
+      }
+    }
+    
+    if (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA') {
+      const isNumberInput = activeElement.tagName === 'INPUT' && activeElement.type === 'number';
+      if (isNumberInput) {
+        try {
+          activeElement.type = 'text';
+        } catch (e) {}
+      }
+      try {
+        cursorStart = activeElement.selectionStart;
+        cursorEnd = activeElement.selectionEnd;
+      } catch (e) {
+        // ignore
+      }
+      if (isNumberInput) {
+        try {
+          activeElement.type = 'number';
+        } catch (e) {}
+      }
+    }
+  }
+
   const isUV = state.printTechnology === 'uv_dtf';
 
   // Update technology buttons
@@ -737,6 +804,40 @@ function updateDOM(container, state) {
         </div>
       `;
     }).join('');
+  }
+
+  // Restore focus and cursor selection
+  if (focusSelector) {
+    const elementToFocus = container.querySelector(focusSelector);
+    if (elementToFocus) {
+      const isNumberInput = elementToFocus.tagName === 'INPUT' && elementToFocus.type === 'number';
+      if (isNumberInput) {
+        try {
+          elementToFocus.type = 'text';
+        } catch (e) {}
+      }
+
+      elementToFocus.focus();
+
+      if (cursorStart !== null && cursorEnd !== null) {
+        try {
+          elementToFocus.setSelectionRange(cursorStart, cursorEnd);
+        } catch (e) {
+          // ignore
+        }
+      } else {
+        try {
+          const len = elementToFocus.value.length;
+          elementToFocus.setSelectionRange(len, len);
+        } catch (e) {}
+      }
+
+      if (isNumberInput) {
+        try {
+          elementToFocus.type = 'number';
+        } catch (e) {}
+      }
+    }
   }
 }
 
