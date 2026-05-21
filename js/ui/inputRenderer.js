@@ -6,6 +6,7 @@
 import { subscribe, getState } from '../state/store.js';
 import { onInputChange, onImagesUpdated, addConversion, updateConversion, removeConversion, setDesignTab, addManualSize, updateManualSize, removeManualSize, overrideImageWidth, setPrintTechnology, setUvPrintType } from '../controller/appController.js';
 import { processImage } from '../modules/imageProcessor.js';
+import { parseLength } from '../modules/formatParser.js';
 
 export function init(container) {
   // Render initial structure
@@ -155,7 +156,7 @@ function buildHTML(state) {
         
         <div style="height: 1px; background: var(--border-color); margin: var(--space-xl) 0;"></div>
 
-        <div class="field-group" id="meters-fields" style="display: ${state.format === 'Meters' || state.format === 'Custom' || state.inputMode === 'image' || state.inputMode === 'manual-size' ? 'block' : 'none'}; margin-bottom: 0;">
+        <div class="field-group" id="meters-fields" style="display: ${state.format === 'Meters' || state.format === 'Custom' || state.inputMode === 'image' || state.inputMode === 'manual-size' ? 'block' : 'none'}; margin-bottom: ${state.format === 'Custom' && state.inputMode !== 'image' && state.inputMode !== 'manual-size' ? 'var(--space-xl)' : '0'};">
           <div class="input-row">
             <div class="input-col">
               <label class="field-label">WIDTH (INCHES)</label>
@@ -173,9 +174,9 @@ function buildHTML(state) {
           <div class="input-row">
             <div class="input-col">
               <label class="field-label">SELECTED FORMAT</label>
-              <div id="format-badge" style="background: #fdf2f8; border: 1px solid #fce7f3; border-radius: 8px; padding: 10px 14px; display: flex; flex-direction: column; justify-content: center; min-height: 44px;">
-                <span id="format-badge-name" style="color: #9d174d; font-weight: 700; font-size: 14px;">A4 Sheet</span>
-                <span id="format-badge-dims" style="color: #be185d; font-size: 11px; margin-top: 2px;">(11" x 8")</span>
+              <div id="format-badge" class="format-badge">
+                <span id="format-badge-name" class="format-badge-name">A4 Sheet</span>
+                <span id="format-badge-dims" class="format-badge-dims">(11" x 8")</span>
               </div>
             </div>
             <div class="input-col">
@@ -418,7 +419,10 @@ function updateDOM(container, state) {
   const quantityField = container.querySelector('#quantity-field');
   const showMeters = (state.format === 'Meters' || state.format === 'Custom' || state.inputMode === 'image' || state.inputMode === 'manual-size');
   const showQuantity = (state.format !== 'Meters' && state.inputMode !== 'image' && state.inputMode !== 'manual-size');
-  if (metersFields) metersFields.style.display = showMeters ? 'block' : 'none';
+  if (metersFields) {
+    metersFields.style.display = showMeters ? 'block' : 'none';
+    metersFields.style.marginBottom = (state.format === 'Custom' && state.inputMode !== 'image' && state.inputMode !== 'manual-size') ? 'var(--space-xl)' : '0';
+  }
   if (quantityField) quantityField.style.display = showQuantity ? 'block' : 'none';
 
   // Show/hide conversions section based on printTechnology
@@ -461,6 +465,10 @@ function updateDOM(container, state) {
     } else if (state.format === 'A2') {
       badgeName.textContent = 'A2 Sheet';
       badgeDims.textContent = '(22.5" x 16.5")';
+    } else if (state.format === 'Custom') {
+      badgeName.textContent = 'Custom Sheet';
+      const parsedLen = parseLength(state.rawLength);
+      badgeDims.textContent = parsedLen > 0 ? `(11" x ${parsedLen}")` : '(11" x ?")';
     }
   }
 
@@ -516,21 +524,27 @@ function updateDOM(container, state) {
       manualList.innerHTML = '<div style="font-size: 13px; color: var(--text-muted); font-style: italic; text-align: center; padding: 12px 0;">No sizes added.</div>';
     } else {
       manualList.innerHTML = state.manualSizes.map(m => `
-        <div style="display: flex; gap: 8px; align-items: center; background: #f9fafb; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 8px;">
-          <input type="text" class="input-field" placeholder="W" value="${m.width}" data-action="manual-size-dim" data-fieldtype="width" data-id="${m.id}" style="width: 60px; padding: 6px;" />
-          <span style="color: var(--text-muted);">×</span>
-          <input type="text" class="input-field" placeholder="H" value="${m.height}" data-action="manual-size-dim" data-fieldtype="height" data-id="${m.id}" style="width: 60px; padding: 6px;" />
-          <span style="color: var(--text-muted); font-size: 12px; margin-left: 4px;">in</span>
-          
-          <div style="flex: 1;"></div>
-          
-          <div class="number-input-group" style="height: 36px; min-width: 90px;">
-            <button class="btn-spin" data-action="dec-manual-qty" data-id="${m.id}" style="width: 28px;">-</button>
-            <input type="number" class="input-field" min="1" value="${m.qty}" data-action="manual-size-qty" data-id="${m.id}" style="padding: 0; font-size: 13px;" />
-            <button class="btn-spin" data-action="inc-manual-qty" data-id="${m.id}" style="width: 28px;">+</button>
+        <div class="manual-size-item">
+          <div class="size-inputs-group">
+            <input type="text" class="input-field" placeholder="W" value="${m.width}" data-action="manual-size-dim" data-fieldtype="width" data-id="${m.id}" style="width: 60px; padding: 6px;" />
+            <span class="multiplier">×</span>
+            <input type="text" class="input-field" placeholder="H" value="${m.height}" data-action="manual-size-dim" data-fieldtype="height" data-id="${m.id}" style="width: 60px; padding: 6px;" />
+            <span class="unit">in</span>
           </div>
           
-          <button class="btn btn-icon" data-action="remove-manual-size" data-id="${m.id}" style="width: 36px; height: 36px; min-height: 36px; padding: 0; display: flex; align-items: center; justify-content: center; color: #ef4444; border: 1px solid #fecaca; background: #fef2f2; border-radius: 8px; flex-shrink: 0;">✕</button>
+          <div class="spacer"></div>
+          
+          <div class="quantity-group">
+            <div class="number-input-group" style="height: 36px; min-width: 90px;">
+              <button class="btn-spin" data-action="dec-manual-qty" data-id="${m.id}" style="width: 28px;">-</button>
+              <input type="number" class="input-field" min="1" value="${m.qty}" data-action="manual-size-qty" data-id="${m.id}" style="padding: 0; font-size: 13px;" />
+              <button class="btn-spin" data-action="inc-manual-qty" data-id="${m.id}" style="width: 28px;">+</button>
+            </div>
+          </div>
+          
+          <div class="delete-group">
+            <button class="btn btn-icon remove-btn" data-action="remove-manual-size" data-id="${m.id}">✕</button>
+          </div>
         </div>
       `).join('');
     }
