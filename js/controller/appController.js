@@ -95,17 +95,13 @@ function calculateCart(cart, deliveryMethod, courierFilter, selectedPartner) {
 function calculateStickersPerSheet(imgWidth, imgLength, sheetW, sheetH, margin = 0.2) {
   if (imgWidth <= 0 || imgLength <= 0 || sheetW <= 0 || sheetH <= 0) return 0;
   // Option 1: Original orientation
-  const effW1 = imgWidth + margin;
-  const effH1 = imgLength + margin;
-  const fitX1 = Math.floor(sheetW / effW1);
-  const fitY1 = Math.floor(sheetH / effH1);
+  const fitX1 = Math.floor((sheetW + margin) / (imgWidth + margin));
+  const fitY1 = Math.floor((sheetH + margin) / (imgLength + margin));
   const fit1 = fitX1 * fitY1;
 
   // Option 2: Rotated 90 degrees
-  const effW2 = imgLength + margin;
-  const effH2 = imgWidth + margin;
-  const fitX2 = Math.floor(sheetW / effW2);
-  const fitY2 = Math.floor(sheetH / effH2);
+  const fitX2 = Math.floor((sheetW + margin) / (imgLength + margin));
+  const fitY2 = Math.floor((sheetH + margin) / (imgWidth + margin));
   const fit2 = fitX2 * fitY2;
 
   return Math.max(fit1, fit2);
@@ -143,17 +139,13 @@ function calculateUVDTFSheets(items, sheetW, sheetH) {
     const gap = 0.0787; // 2mm in inches
 
     // Option 1: Original orientation
-    const effW1 = g.w + gap;
-    const effH1 = g.h + gap;
-    const fitX1 = Math.floor(sheetW / effW1);
-    const fitY1 = Math.floor(sheetH / effH1);
+    const fitX1 = Math.floor((sheetW + gap) / (g.w + gap));
+    const fitY1 = Math.floor((sheetH + gap) / (g.h + gap));
     const fit1 = fitX1 * fitY1;
 
     // Option 2: Rotated 90 degrees orientation
-    const effW2 = g.h + gap;
-    const effH2 = g.w + gap;
-    const fitX2 = Math.floor(sheetW / effW2);
-    const fitY2 = Math.floor(sheetH / effH2);
+    const fitX2 = Math.floor((sheetW + gap) / (g.h + gap));
+    const fitY2 = Math.floor((sheetH + gap) / (g.w + gap));
     const fit2 = fitX2 * fitY2;
 
     const maxFit = Math.max(fit1, fit2);
