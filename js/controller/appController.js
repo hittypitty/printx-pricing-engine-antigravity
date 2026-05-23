@@ -134,7 +134,12 @@ function calculateUVDTFSheets(items, sheetW, sheetH) {
     const fitY2 = Math.floor(sheetH / effH2);
     const fit2 = fitX2 * fitY2;
 
-    const stickersPerSheet = Math.max(1, Math.max(fit1, fit2));
+    const maxFit = Math.max(fit1, fit2);
+    if (maxFit === 0) {
+      totalSheets = Infinity;
+      return;
+    }
+    const stickersPerSheet = maxFit;
     const sheetsNeeded = Math.ceil(g.qty / stickersPerSheet);
 
     totalSheets += sheetsNeeded;
@@ -207,64 +212,120 @@ export function recalculate() {
           quantity: Number(sz.qty) || 1,
         })).filter(img => img.width > 0 && img.length > 0);
       }
-      
+
+      // Bug 2: UV DTF Sheet Size Auto-Detection with tolerance
+      let detectedFormat = null;
+      let detectedLength = null;
+
+      if (validItems.length === 1) {
+        const item = validItems[0];
+        // Smaller side is width, larger is length
+        const w = Math.min(item.width, item.length);
+        const l = Math.max(item.width, item.length);
+
+        const isWidth11 = w >= 10.8 && w <= 11.2;
+        if (isWidth11) {
+          if (l >= 7.8 && l <= 8.2) {
+            detectedFormat = 'A4';
+            detectedLength = 8;
+          } else if (l >= 15.8 && l <= 16.2) {
+            detectedFormat = 'A3';
+            detectedLength = 16;
+          } else if (l > 16.2 && l <= 20.2) {
+            detectedFormat = 'Custom';
+            detectedLength = Math.ceil(l);
+          }
+        }
+      }
+
       const { uvDtfPricing } = getConfig();
       const a4Rate = s.uvPrintType === '3d' ? uvDtfPricing.A4_3D : uvDtfPricing.A4_NORMAL;
       
-      // Calculate sheets for A4 (11x8)
-      const a4SheetsResult = calculateUVDTFSheets(validItems, 11, 8);
-      const required_sheets_A4 = a4SheetsResult.totalSheets;
-      const stickersPerSheet_A4 = a4SheetsResult.stickersPerSheet;
-      const price_A4 = required_sheets_A4 * a4Rate;
-      
-      // Calculate sheets for A3 (11x16)
-      const a3SheetsResult = calculateUVDTFSheets(validItems, 11, 16);
-      const required_sheets_A3 = a3SheetsResult.totalSheets;
-      const stickersPerSheet_A3 = a3SheetsResult.stickersPerSheet;
-      
-      const slabs = uvDtfPricing.A3_SLABS;
-      const slab = slabs.find(sl => required_sheets_A3 >= sl.min && required_sheets_A3 <= sl.max);
-      const a3Rate = slab ? slab.rate : slabs[slabs.length - 1].rate;
-      const price_A3 = required_sheets_A3 * a3Rate;
-      
       let bestQuantity, bestStickersPerSheet, bestPrice, bestRateApplied, bestMethodLabel;
-      
-      // Choose A3 if it is cheaper, or if prices are equal but it uses fewer physical sheets
-      if (price_A3 < price_A4 || (price_A3 === price_A4 && required_sheets_A3 < required_sheets_A4)) {
-        bestFormat = 'A3';
-        bestQuantity = required_sheets_A3;
-        bestStickersPerSheet = stickersPerSheet_A3;
-        bestPrice = price_A3;
-        bestRateApplied = a3Rate;
-        bestMethodLabel = 'UV A3';
+
+      if (detectedFormat) {
+        bestFormat = detectedFormat;
+        const item = validItems[0];
+        bestQuantity = item.quantity;
+        bestStickersPerSheet = 1;
+        
+        bestDims = {
+          printableWidth: 11,
+          pricingWidth: 11,
+          length: detectedLength,
+          quantity: bestQuantity,
+          totalMeters: (detectedLength * bestQuantity) / 39,
+          totalSqInches: 11 * detectedLength * bestQuantity,
+          isSheetFormat: true,
+          stickersPerSheet: bestStickersPerSheet,
+          computedImageLength: bestQuantity * detectedLength,
+          format: detectedFormat
+        };
+        
+        bestPricing = calculatePrintCost({
+          format: detectedFormat,
+          printTechnology: s.printTechnology,
+          uvPrintType: s.uvPrintType,
+          ...bestDims
+        });
+        
+        bestPrice = bestPricing.printCost;
+        bestRateApplied = bestPricing.rateApplied;
+        bestMethodLabel = bestPricing.methodLabel;
       } else {
-        bestFormat = 'A4';
-        bestQuantity = required_sheets_A4;
-        bestStickersPerSheet = stickersPerSheet_A4;
-        bestPrice = price_A4;
-        bestRateApplied = a4Rate;
-        bestMethodLabel = `UV A4 ${s.uvPrintType === '3d' ? '3D' : 'Normal'}`;
+        // Calculate sheets for A4 (11x8)
+        const a4SheetsResult = calculateUVDTFSheets(validItems, 11, 8);
+        const required_sheets_A4 = a4SheetsResult.totalSheets;
+        const stickersPerSheet_A4 = a4SheetsResult.stickersPerSheet;
+        const price_A4 = required_sheets_A4 * a4Rate;
+        
+        // Calculate sheets for A3 (11x16)
+        const a3SheetsResult = calculateUVDTFSheets(validItems, 11, 16);
+        const required_sheets_A3 = a3SheetsResult.totalSheets;
+        const stickersPerSheet_A3 = a3SheetsResult.stickersPerSheet;
+        
+        const slabs = uvDtfPricing.A3_SLABS;
+        const slab = slabs.find(sl => required_sheets_A3 >= sl.min && required_sheets_A3 <= sl.max);
+        const a3Rate = slab ? slab.rate : slabs[slabs.length - 1].rate;
+        const price_A3 = required_sheets_A3 * a3Rate;
+        
+        // Choose A3 if it is cheaper, or if prices are equal but it uses fewer physical sheets
+        if (price_A3 < price_A4 || (price_A3 === price_A4 && required_sheets_A3 < required_sheets_A4)) {
+          bestFormat = 'A3';
+          bestQuantity = required_sheets_A3;
+          bestStickersPerSheet = stickersPerSheet_A3;
+          bestPrice = price_A3;
+          bestRateApplied = a3Rate;
+          bestMethodLabel = 'UV A3';
+        } else {
+          bestFormat = 'A4';
+          bestQuantity = required_sheets_A4;
+          bestStickersPerSheet = stickersPerSheet_A4;
+          bestPrice = price_A4;
+          bestRateApplied = a4Rate;
+          bestMethodLabel = `UV A4 ${s.uvPrintType === '3d' ? '3D' : 'Normal'}`;
+        }
+        
+        bestDims = {
+          printableWidth: 11,
+          pricingWidth: 11,
+          length: bestFormat === 'A4' ? 8 : 16,
+          quantity: bestQuantity,
+          totalMeters: ( (bestFormat === 'A4' ? 8 : 16) * bestQuantity ) / 39,
+          totalSqInches: 11 * (bestFormat === 'A4' ? 8 : 16) * bestQuantity,
+          isSheetFormat: true,
+          stickersPerSheet: bestStickersPerSheet,
+          computedImageLength: bestFormat === 'A4' ? bestQuantity * 8 : bestQuantity * 16,
+        };
+        
+        bestPricing = {
+          printCost: bestPrice,
+          effectiveRate: bestDims.totalSqInches > 0 ? (bestPrice / bestDims.totalSqInches).toFixed(2) : '0.00',
+          rateApplied: bestRateApplied,
+          methodLabel: bestMethodLabel,
+          breakdown: `${bestQuantity} pcs × ₹${bestRateApplied} / pc`,
+        };
       }
-      
-      bestDims = {
-        printableWidth: 11,
-        pricingWidth: 11,
-        length: bestFormat === 'A4' ? 8 : 16,
-        quantity: bestQuantity,
-        totalMeters: ( (bestFormat === 'A4' ? 8 : 16) * bestQuantity ) / 39,
-        totalSqInches: 11 * (bestFormat === 'A4' ? 8 : 16) * bestQuantity,
-        isSheetFormat: true,
-        stickersPerSheet: bestStickersPerSheet,
-        computedImageLength: bestFormat === 'A4' ? bestQuantity * 8 : bestQuantity * 16,
-      };
-      
-      bestPricing = {
-        printCost: bestPrice,
-        effectiveRate: bestDims.totalSqInches > 0 ? (bestPrice / bestDims.totalSqInches).toFixed(2) : '0.00',
-        rateApplied: bestRateApplied,
-        methodLabel: bestMethodLabel,
-        breakdown: `${bestQuantity} pcs × ₹${bestRateApplied} / pc`,
-      };
     } else {
       // Fabric DTF
       const totalMeters = lengthInches / 39;
