@@ -24,7 +24,99 @@ export function calculateUVDTFA3EquivalentSheets(format, quantity, length) {
 /**
  * Get shipping weight for UV DTF based on A3 equivalent sheets.
  */
+export const UV_DTF_HISTORICAL_WEIGHTS = {
+  1: 0.15,
+  2: 0.20,
+  3: 0.20,
+  4: 0.30,
+  5: 0.30,
+  6: 0.30,
+  7: 0.35,
+  8: 0.40,
+  9: 0.45,
+  10: 0.46,
+  11: 0.50,
+  12: 0.55,
+  13: 0.60,
+  14: 0.65,
+  15: 0.70,
+  20: 0.95,
+  25: 1.15,
+  30: 1.37,
+  31: 1.35,
+  35: 1.45,
+  40: 1.70,
+  45: 1.90,
+  50: 2.10,
+  55: 2.35,
+  60: 2.55,
+  65: 2.75,
+  70: 3.00,
+  75: 3.25,
+  80: 3.35,
+  100: 4.45
+};
+
+export function calculateInterpolatedUVDTFWeight(qty) {
+  if (qty <= 0) return 0.0;
+
+  // Exact match
+  if (UV_DTF_HISTORICAL_WEIGHTS[qty] !== undefined) {
+    return UV_DTF_HISTORICAL_WEIGHTS[qty];
+  }
+
+  const keys = Object.keys(UV_DTF_HISTORICAL_WEIGHTS).map(Number).sort((a, b) => a - b);
+
+  // Less than the smallest key (1)
+  if (qty < keys[0]) {
+    const x2 = keys[0];
+    const y2 = UV_DTF_HISTORICAL_WEIGHTS[x2];
+    const weight = (qty / x2) * y2;
+    return Math.round(weight * 20) / 20;
+  }
+
+  // Greater than the largest key (100)
+  if (qty > keys[keys.length - 1]) {
+    const x1 = keys[keys.length - 2]; // 80
+    const y1 = UV_DTF_HISTORICAL_WEIGHTS[x1]; // 3.35
+    const x2 = keys[keys.length - 1]; // 100
+    const y2 = UV_DTF_HISTORICAL_WEIGHTS[x2]; // 4.45
+    const slope = (y2 - y1) / (x2 - x1);
+    const weight = y2 + (qty - x2) * slope;
+    return Math.round(weight * 20) / 20;
+  }
+
+  // Between two keys
+  let x1 = keys[0];
+  let y1 = UV_DTF_HISTORICAL_WEIGHTS[x1];
+  let x2 = keys[0];
+  let y2 = UV_DTF_HISTORICAL_WEIGHTS[x2];
+
+  for (let i = 0; i < keys.length - 1; i++) {
+    if (qty >= keys[i] && qty <= keys[i + 1]) {
+      x1 = keys[i];
+      y1 = UV_DTF_HISTORICAL_WEIGHTS[x1];
+      x2 = keys[i + 1];
+      y2 = UV_DTF_HISTORICAL_WEIGHTS[x2];
+      break;
+    }
+  }
+
+  const weight = y1 + ((qty - x1) / (x2 - x1)) * (y2 - y1);
+  return Math.round(weight * 20) / 20;
+}
+
+/**
+ * Get shipping weight for UV DTF based on A3 equivalent sheets.
+ */
 export function getUVDTFWeight(format, quantity, length) {
+  const a3Equivalent = calculateUVDTFA3EquivalentSheets(format, quantity, length);
+  const qty = Math.ceil(a3Equivalent);
+  return calculateInterpolatedUVDTFWeight(qty);
+}
+
+// SAFE DEPRECATED IMPLEMENTATION (kept for easy revert if needed)
+export function getUVDTFWeightOld(format, quantity, length) {
   const a3Equivalent = calculateUVDTFA3EquivalentSheets(format, quantity, length);
   const qty = Math.ceil(a3Equivalent);
   
@@ -93,6 +185,14 @@ export function calculateShipping(partnerKey, totalMeters, quantity, weightOverr
 
   const slabCount = Math.ceil(finalWeight / partner.slab);
   const shippingCost = partner.base + (Math.max(slabCount - 1, 0) * partner.add);
+
+  // Debug logging temporarily
+  console.log({
+    qty: quantity,
+    estimatedWeight: finalWeight,
+    courierRate: partner.base,
+    shippingCost
+  });
 
   return {
     partnerKey,
