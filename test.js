@@ -46,7 +46,7 @@ function buildHTML(state) {
   const deliveryCost = state.shippingCost + state.packagingCost;
   const deliveryText = state.deliveryMethod === 'pickup' ? 'Free' : '₹' + deliveryCost;
   const deliverySub = state.deliveryMethod === 'pickup' ? 'Office Pickup' : state.partnerName;
-  const deliveryKpiSub = state.deliveryMethod === 'pickup' ? 'Office Pickup' : `ETA: ${state.eta} (${state.countedWeight} kg)`;
+  const deliveryKpiSub = state.deliveryMethod === 'pickup' ? 'Office Pickup' : `ETA: ${state.eta}`;
 
   let effectiveText = '';
   if (state.isSheetFormat) {

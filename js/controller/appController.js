@@ -90,6 +90,28 @@ function calculateCart(cart, deliveryMethod, courierFilter, selectedPartner) {
 }
 
 /**
+ * Helper to calculate how many stickers of a given size fit onto a sheet/meter.
+ */
+function calculateStickersPerSheet(imgWidth, imgLength, sheetW, sheetH, margin = 0.2) {
+  if (imgWidth <= 0 || imgLength <= 0 || sheetW <= 0 || sheetH <= 0) return 0;
+  // Option 1: Original orientation
+  const effW1 = imgWidth + margin;
+  const effH1 = imgLength + margin;
+  const fitX1 = Math.floor(sheetW / effW1);
+  const fitY1 = Math.floor(sheetH / effH1);
+  const fit1 = fitX1 * fitY1;
+
+  // Option 2: Rotated 90 degrees
+  const effW2 = imgLength + margin;
+  const effH2 = imgWidth + margin;
+  const fitX2 = Math.floor(sheetW / effW2);
+  const fitY2 = Math.floor(sheetH / effH2);
+  const fit2 = fitX2 * fitY2;
+
+  return Math.max(fit1, fit2);
+}
+
+/**
  * Helper to calculate required sheets and stickers per sheet for UV DTF.
  * Groups identical sticker sizes (ignoring orientation) to pack them together,
  * and tests both original and rotated (90 deg) orientations to maximize sheet fit.
@@ -200,18 +222,19 @@ export function recalculate() {
 
     let bestFormat, bestDims, bestPricing;
 
+    let validItems = [];
+    if (s.inputMode === 'image') {
+      validItems = (s.images || []).filter(img => img.isValid && (!img.hasWarning || img.isOverridden));
+    } else {
+      validItems = (s.manualSizes || []).map((sz, i) => ({
+        isValid: true,
+        width: Number(sz.width) || 0,
+        length: Number(sz.height) || 0,
+        quantity: Number(sz.qty) || 1,
+      })).filter(img => img.width > 0 && img.length > 0);
+    }
+
     if (isUV) {
-      let validItems = [];
-      if (s.inputMode === 'image') {
-        validItems = (s.images || []).filter(img => img.isValid && (!img.hasWarning || img.isOverridden));
-      } else {
-        validItems = (s.manualSizes || []).map((sz, i) => ({
-          isValid: true,
-          width: Number(sz.width) || 0,
-          length: Number(sz.height) || 0,
-          quantity: Number(sz.qty) || 1,
-        })).filter(img => img.width > 0 && img.length > 0);
-      }
 
       // Bug 2: UV DTF Sheet Size Auto-Detection with tolerance
       let detectedFormat = null;
@@ -378,6 +401,26 @@ export function recalculate() {
           }
         }
       });
+
+      // Calculate stickersPerSheet for Fabric DTF
+      if (validItems.length > 0) {
+        const firstItem = validItems[0];
+        let sheetW, sheetH;
+        if (bestFormat === 'Meters') {
+          sheetW = 22.5;
+          sheetH = 39;
+        } else {
+          const f = FMT[bestFormat];
+          if (f) {
+            sheetW = f.printableWidth;
+            sheetH = f.length;
+          } else {
+            sheetW = 22.5;
+            sheetH = 39;
+          }
+        }
+        bestDims.stickersPerSheet = calculateStickersPerSheet(firstItem.width, firstItem.length, sheetW, sheetH, 0.2);
+      }
     }
 
     const pricing = bestPricing;

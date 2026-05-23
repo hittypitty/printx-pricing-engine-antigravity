@@ -13,7 +13,7 @@ export function init(container) {
 function buildHTML(state) {
   const deliveryCost = state.shippingCost + state.packagingCost;
   const deliveryText = state.deliveryMethod === 'pickup' ? 'Free' : '₹' + deliveryCost;
-  const deliveryKpiSub = state.deliveryMethod === 'pickup' ? `Office Pickup<br>Weight: ${state.countedWeight} kg` : `ETA: ${state.eta} (${state.countedWeight} kg)`;
+  const deliveryKpiSub = state.deliveryMethod === 'pickup' ? 'Office Pickup' : `ETA: ${state.eta}`;
   const effectiveRate = state.effectiveRate || '0.00';
   const isUVAuto = state.printTechnology === 'uv_dtf' && (state.inputMode === 'image' || state.inputMode === 'manual-size');
   
@@ -24,9 +24,16 @@ function buildHTML(state) {
   const metricValueText = hasCart
     ? `${state.cart.length} item(s)`
     : (isUVAuto ? `${state.quantity} sheets` : (state.isSheetFormat ? state.quantity + ' pcs' : state.totalMeters.toFixed(3) + 'm'));
+  const isAuto = state.inputMode === 'image' || state.inputMode === 'manual-size';
   const metricSubText = hasCart
     ? `${state.cart.reduce((sum, item) => sum + (item.isSheetFormat ? item.quantity : 1), 0)} items total`
-    : (isUVAuto ? `${state.stickersPerSheet || 0} pcs / sheet` : (state.isSheetFormat ? '@ ₹' + state.rateApplied + ' / pc' : '@ ₹' + state.rateApplied + ' / m'));
+    : (isAuto
+        ? (state.printTechnology === 'uv_dtf'
+            ? `${state.stickersPerSheet || 0} pcs / sheet`
+            : `${state.stickersPerSheet || 0} pcs / meter`
+          )
+        : (state.isSheetFormat ? '@ ₹' + state.rateApplied + ' / pc' : '@ ₹' + state.rateApplied + ' / m')
+      );
 
   const printSubText = hasCart ? 'Mixed Order' : (state.methodLabel || 'Running Meter');
   const showConversion = hasCart ? state.conversionCost > 0 : (state.conversions && state.conversions.length > 0);
@@ -97,7 +104,7 @@ function buildHTML(state) {
 function updateDOM(container, state) {
   const deliveryCost = state.shippingCost + state.packagingCost;
   const deliveryText = state.deliveryMethod === 'pickup' ? 'Free' : '₹' + deliveryCost;
-  const deliveryKpiSub = state.deliveryMethod === 'pickup' ? `Office Pickup<br>Weight: ${state.countedWeight} kg` : `ETA: ${state.eta} (${state.countedWeight} kg)`;
+  const deliveryKpiSub = state.deliveryMethod === 'pickup' ? 'Office Pickup' : `ETA: ${state.eta}`;
   const effectiveRate = state.effectiveRate || '0.00';
 
   const isUVAuto = state.printTechnology === 'uv_dtf' && (state.inputMode === 'image' || state.inputMode === 'manual-size');
@@ -119,9 +126,16 @@ function updateDOM(container, state) {
       : (isUVAuto ? `${state.quantity} sheets` : (state.isSheetFormat ? state.quantity + ' pcs' : state.totalMeters.toFixed(3) + 'm'));
   }
   if (metricSub) {
+    const isAuto = state.inputMode === 'image' || state.inputMode === 'manual-size';
     metricSub.textContent = hasCart
       ? `${state.cart.reduce((sum, item) => sum + (item.isSheetFormat ? item.quantity : 1), 0)} items total`
-      : (isUVAuto ? `${state.stickersPerSheet || 0} pcs / sheet` : (state.isSheetFormat ? '@ ₹' + state.rateApplied + ' / pc' : '@ ₹' + state.rateApplied + ' / m'));
+      : (isAuto
+          ? (state.printTechnology === 'uv_dtf'
+              ? `${state.stickersPerSheet || 0} pcs / sheet`
+              : `${state.stickersPerSheet || 0} pcs / meter`
+            )
+          : (state.isSheetFormat ? '@ ₹' + state.rateApplied + ' / pc' : '@ ₹' + state.rateApplied + ' / m')
+        );
   }
 
   const printCost = container.querySelector('#kpi-print-cost');

@@ -228,26 +228,6 @@ function renderPanel(panel) {
         `).join('')}
       </div>
 
-      <!-- UV DTF SHIPPING WEIGHT -->
-      <div class="admin-section">
-        <h3 class="admin-section-title">📦 UV DTF Shipping Weight</h3>
-        <h4 class="admin-subsection-title">Shipping Slabs (A3 equiv sheets)</h4>
-        ${config.weights.UV_DTF_SHIPPING_SLABS.map((slab, i) => `
-          <div class="admin-slab-row">
-            <div style="display: flex; gap: 4px; align-items: center;">
-              <input type="number" class="input-field input-xs" value="${slab.min}" data-action="uv-weight-min" data-index="${i}" />
-              <span style="color: var(--text-muted);">-</span>
-              <input type="number" class="input-field input-xs" value="${slab.max === Infinity ? 999 : slab.max}" data-action="uv-weight-max" data-index="${i}" />
-              <span style="margin-left: 4px; color: var(--text-secondary); font-size: 13px;">pcs</span>
-            </div>
-            <div class="admin-slab-input">
-              <input type="number" step="0.01" class="input-field input-sm" value="${slab.weight}" data-action="uv-weight-val" data-index="${i}" />
-              <span class="admin-slab-suffix">kg</span>
-            </div>
-          </div>
-        `).join('')}
-      </div>
-
       <!-- COURIERS -->
       <div class="admin-section">
         <h3 class="admin-section-title">🚚 Courier Partners</h3>
@@ -263,26 +243,13 @@ function renderPanel(panel) {
                 <label class="admin-label">Per Slab (₹)</label>
                 <input type="number" class="input-field input-sm" value="${partner.add}" data-action="courier" data-partner="${key}" data-field="add" />
               </div>
-              <div class="admin-field">
-                <label class="admin-label">Slab (kg)</label>
-                <input type="number" class="input-field input-sm" step="0.1" value="${partner.slab}" data-action="courier" data-partner="${key}" data-field="slab" />
-              </div>
-              <div class="admin-field">
+              <div class="admin-field" style="grid-column: span 2;">
                 <label class="admin-label">ETA</label>
-                <input type="text" class="input-field input-sm" value="${partner.eta}" data-action="courier" data-partner="${key}" data-field="eta" />
+                <input type="text" class="input-field" value="${partner.eta}" data-action="courier" data-partner="${key}" data-field="eta" style="width: 100%; padding: 6px 8px; font-size: var(--fs-sm);" />
               </div>
             </div>
           </div>
         `).join('')}
-      </div>
-
-      <!-- SYSTEM -->
-      <div class="admin-section">
-        <h3 class="admin-section-title">⚡ System</h3>
-        <div class="admin-field">
-          <label class="admin-label">Weight per Meter (kg)</label>
-          <input type="number" class="input-field" step="0.01" value="${config.weights.WEIGHT_PER_METER_KG}" data-section="weights" data-key="WEIGHT_PER_METER_KG" />
-        </div>
       </div>
 
     </div>
@@ -352,25 +319,6 @@ function saveAll(panel) {
   if (!sectionUpdates.uvDtfPricing) sectionUpdates.uvDtfPricing = {};
   sectionUpdates.uvDtfPricing.A3_SLABS = uvSlabs;
 
-  // Collect ALL UV DTF shipping weight slabs from DOM
-  const uvWeightSlabs = config.weights.UV_DTF_SHIPPING_SLABS.map((s, i) => {
-    const minInput = panel.querySelector(`[data-action="uv-weight-min"][data-index="${i}"]`);
-    const maxInput = panel.querySelector(`[data-action="uv-weight-max"][data-index="${i}"]`);
-    const weightInput = panel.querySelector(`[data-action="uv-weight-val"][data-index="${i}"]`);
-    
-    const minVal = minInput ? parseInt(minInput.value, 10) : s.min;
-    let maxVal = maxInput ? parseInt(maxInput.value, 10) : s.max;
-    if (maxVal >= 999) maxVal = 999;
-    const weightVal = weightInput ? parseFloat(weightInput.value) : s.weight;
-
-    return {
-      min: minVal,
-      max: maxVal,
-      weight: weightVal
-    };
-  });
-  if (!sectionUpdates.weights) sectionUpdates.weights = {};
-  sectionUpdates.weights.UV_DTF_SHIPPING_SLABS = uvWeightSlabs;
 
   // 3. Collect ALL sheet prices from DOM
   const formats = {};
