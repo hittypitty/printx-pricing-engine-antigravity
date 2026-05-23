@@ -58,52 +58,76 @@ export const UV_DTF_HISTORICAL_WEIGHTS = {
 };
 
 export function calculateInterpolatedUVDTFWeight(qty) {
-  if (qty <= 0) return 0.0;
+  let matchedWeight = null;
+  let lowerPoint = null;
+  let higherPoint = null;
+  let interpolatedWeight = null;
+  let finalWeight = 0.0;
 
-  // Exact match
-  if (UV_DTF_HISTORICAL_WEIGHTS[qty] !== undefined) {
-    return UV_DTF_HISTORICAL_WEIGHTS[qty];
-  }
+  if (qty <= 0) {
+    finalWeight = 0.0;
+  } else if (UV_DTF_HISTORICAL_WEIGHTS[qty] !== undefined) {
+    matchedWeight = UV_DTF_HISTORICAL_WEIGHTS[qty];
+    finalWeight = matchedWeight;
+  } else {
+    const keys = Object.keys(UV_DTF_HISTORICAL_WEIGHTS).map(Number).sort((a, b) => a - b);
 
-  const keys = Object.keys(UV_DTF_HISTORICAL_WEIGHTS).map(Number).sort((a, b) => a - b);
+    // Less than the smallest key (1)
+    if (qty < keys[0]) {
+      const x2 = keys[0];
+      const y2 = UV_DTF_HISTORICAL_WEIGHTS[x2];
+      lowerPoint = { qty: 0, weight: 0.0 };
+      higherPoint = { qty: x2, weight: y2 };
+      interpolatedWeight = (qty / x2) * y2;
+      finalWeight = Math.round(interpolatedWeight * 20) / 20;
+    }
+    // Greater than the largest key (100)
+    else if (qty > keys[keys.length - 1]) {
+      const x1 = keys[keys.length - 2]; // 80
+      const y1 = UV_DTF_HISTORICAL_WEIGHTS[x1]; // 3.35
+      const x2 = keys[keys.length - 1]; // 100
+      const y2 = UV_DTF_HISTORICAL_WEIGHTS[x2]; // 4.45
+      const slope = (y2 - y1) / (x2 - x1);
+      lowerPoint = { qty: x1, weight: y1 };
+      higherPoint = { qty: x2, weight: y2 };
+      interpolatedWeight = y2 + (qty - x2) * slope;
+      finalWeight = Math.round(interpolatedWeight * 20) / 20;
+    }
+    // Between two keys
+    else {
+      let x1 = keys[0];
+      let y1 = UV_DTF_HISTORICAL_WEIGHTS[x1];
+      let x2 = keys[0];
+      let y2 = UV_DTF_HISTORICAL_WEIGHTS[x2];
 
-  // Less than the smallest key (1)
-  if (qty < keys[0]) {
-    const x2 = keys[0];
-    const y2 = UV_DTF_HISTORICAL_WEIGHTS[x2];
-    const weight = (qty / x2) * y2;
-    return Math.round(weight * 20) / 20;
-  }
+      for (let i = 0; i < keys.length - 1; i++) {
+        if (qty >= keys[i] && qty <= keys[i + 1]) {
+          x1 = keys[i];
+          y1 = UV_DTF_HISTORICAL_WEIGHTS[x1];
+          x2 = keys[i + 1];
+          y2 = UV_DTF_HISTORICAL_WEIGHTS[x2];
+          break;
+        }
+      }
 
-  // Greater than the largest key (100)
-  if (qty > keys[keys.length - 1]) {
-    const x1 = keys[keys.length - 2]; // 80
-    const y1 = UV_DTF_HISTORICAL_WEIGHTS[x1]; // 3.35
-    const x2 = keys[keys.length - 1]; // 100
-    const y2 = UV_DTF_HISTORICAL_WEIGHTS[x2]; // 4.45
-    const slope = (y2 - y1) / (x2 - x1);
-    const weight = y2 + (qty - x2) * slope;
-    return Math.round(weight * 20) / 20;
-  }
-
-  // Between two keys
-  let x1 = keys[0];
-  let y1 = UV_DTF_HISTORICAL_WEIGHTS[x1];
-  let x2 = keys[0];
-  let y2 = UV_DTF_HISTORICAL_WEIGHTS[x2];
-
-  for (let i = 0; i < keys.length - 1; i++) {
-    if (qty >= keys[i] && qty <= keys[i + 1]) {
-      x1 = keys[i];
-      y1 = UV_DTF_HISTORICAL_WEIGHTS[x1];
-      x2 = keys[i + 1];
-      y2 = UV_DTF_HISTORICAL_WEIGHTS[x2];
-      break;
+      lowerPoint = { qty: x1, weight: y1 };
+      higherPoint = { qty: x2, weight: y2 };
+      interpolatedWeight = y1 + ((qty - x1) / (x2 - x1)) * (y2 - y1);
+      finalWeight = Math.round(interpolatedWeight * 20) / 20;
     }
   }
 
-  const weight = y1 + ((qty - x1) / (x2 - x1)) * (y2 - y1);
-  return Math.round(weight * 20) / 20;
+  // Temporary console debug as requested
+  console.log({
+    qty,
+    matchedWeight,
+    lowerPoint,
+    higherPoint,
+    interpolatedWeight,
+    finalWeight
+  });
+
+  return finalWeight;
 }
 
 /**
