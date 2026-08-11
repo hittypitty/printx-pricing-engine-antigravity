@@ -1,10 +1,8 @@
 /**
  * Pricing Engine — Sheet pricing, micro-pricing, slab pricing, conversion cost
  * Pure function module — width-agnostic (uses pre-computed totalSqInches from formatParser).
- * Reads all rates from configStore (admin-editable).
+ * Reads all rates from config parameter (admin-editable).
  */
-
-import { getConfig } from '../state/configStore.js';
 
 /**
  * Calculate print cost using V1 rules exactly.
@@ -22,10 +20,14 @@ import { getConfig } from '../state/configStore.js';
  *   length: number,
  *   isSheetFormat: boolean
  * }} dims
+ * @param {object} config - Configuration object
  * @returns {{ printCost: number, rateApplied: number, methodLabel: string, breakdown: string }}
  */
-export function calculatePrintCost(dims) {
-  const { pricing, formats, uvDtfPricing } = getConfig();
+export function calculatePrintCost(dims, config) {
+  if (!config) {
+    throw new Error('calculatePrintCost: config is required');
+  }
+  const { pricing, formats, uvDtfPricing } = config;
   const { format, totalMeters, totalSqInches, quantity, isSheetFormat, printTechnology, uvPrintType, length } = dims;
 
   // UV DTF Logic
@@ -123,10 +125,14 @@ export function calculatePrintCost(dims) {
  * Calculate conversion cost based on array of selected conversions.
  *
  * @param {Array<{id: string, type: string, qty: number}>} conversions
+ * @param {object} config - Configuration object
  * @returns {{ conversionCost: number, breakdown: string, breakdownList: string[] }}
  */
-export function calculateConversionCost(conversions) {
-  const { pricing } = getConfig();
+export function calculateConversionCost(conversions, config) {
+  if (!config) {
+    throw new Error('calculateConversionCost: config is required');
+  }
+  const { pricing } = config;
   if (!conversions || conversions.length === 0) {
     return { conversionCost: 0, breakdown: '', breakdownList: [] };
   }
@@ -147,3 +153,4 @@ export function calculateConversionCost(conversions) {
     breakdownList
   };
 }
+

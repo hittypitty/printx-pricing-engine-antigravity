@@ -1,9 +1,8 @@
 /**
  * Validation Engine — Input validation, width guard
- * Pure function module — uses PRINTABLE_WIDTH from configStore.
+ * Pure function module — uses PRINTABLE_WIDTH from config parameter.
  */
 
-import { getConfig } from '../state/configStore.js';
 import { parseLength } from './formatParser.js';
 
 /**
@@ -15,10 +14,14 @@ import { parseLength } from './formatParser.js';
  *   rawLength: string,
  *   printableWidth: number
  * }} input
+ * @param {object} config - Configuration object
  * @returns {{ isValid: boolean, error: string | null }}
  */
-export function validateInputs({ format, quantity, rawLength, printableWidth }) {
-  const { formats } = getConfig();
+export function validateInputs({ format, quantity, rawLength, printableWidth }, config) {
+  if (!config) {
+    throw new Error('validateInputs: config is required');
+  }
+  const { formats } = config;
   const maxWidth = formats.PRINTABLE_WIDTH;
 
   if (printableWidth > maxWidth) {
@@ -51,7 +54,7 @@ export function validateInputs({ format, quantity, rawLength, printableWidth }) 
     if (format === 'Custom') {
       const parsedLen = parseLength(rawLength);
       if (parsedLen < 8 || parsedLen > 20) {
-        return {
+         return {
           isValid: false,
           error: 'Length must be between 8 and 20 inches for Custom format.',
         };
@@ -61,3 +64,4 @@ export function validateInputs({ format, quantity, rawLength, printableWidth }) 
 
   return { isValid: true, error: null };
 }
+

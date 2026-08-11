@@ -13,7 +13,7 @@ export const WEIGHT_CONFIG = [
   { meter: 12, actualWeight: 1.11, l: 66, b: 8, h: 8 },
   { meter: 13, actualWeight: 1.45, l: 66, b: 8, h: 8 },
   { meter: 14, actualWeight: 1.55, l: 66, b: 8, h: 8 },
-  { meter: 15, actualWeight: 1.5, l: 66, b: 8, h: 8 },
+  { meter: 15, actualWeight: 1.65, l: 66, b: 8, h: 8 },
   { meter: 16, actualWeight: 1.75, l: 66, b: 8, h: 8 },
   { meter: 17, actualWeight: 1.85, l: 66, b: 9, h: 9 },
   { meter: 18, actualWeight: 1.95, l: 66, b: 9, h: 9 },

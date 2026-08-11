@@ -1,9 +1,8 @@
 /**
  * Delivery Engine — Weight calculation, shipping cost, packaging
- * Pure function module — reads courier rates and weight config from configStore.
+ * Pure function module — reads courier rates and weight config from config parameter.
  */
 
-import { getConfig } from '../state/configStore.js';
 import { WEIGHT_CONFIG } from '../config/weightConfig.js';
 
 /**
@@ -140,11 +139,14 @@ export function getUVDTFWeight(format, quantity, length) {
 }
 
 // SAFE DEPRECATED IMPLEMENTATION (kept for easy revert if needed)
-export function getUVDTFWeightOld(format, quantity, length) {
+export function getUVDTFWeightOld(format, quantity, length, config) {
   const a3Equivalent = calculateUVDTFA3EquivalentSheets(format, quantity, length);
   const qty = Math.ceil(a3Equivalent);
   
-  const { weights } = getConfig();
+  if (!config) {
+    throw new Error('getUVDTFWeightOld: config is required');
+  }
+  const { weights } = config;
   const slabs = weights.UV_DTF_SHIPPING_SLABS || [];
   const matched = slabs.find(s => qty >= s.min && qty <= s.max);
   if (matched) {
@@ -193,10 +195,14 @@ export function getFabricWeight(totalMeters) {
  * @param {number} totalMeters
  * @param {number} quantity
  * @param {number} [weightOverride] - Pre-calculated weight (e.g. for UV DTF or global state)
+ * @param {object} config - Configuration object
  * @returns {{ partnerKey, partnerName, shippingCost, countedWeight, eta, trackUrl, breakdown } | null}
  */
-export function calculateShipping(partnerKey, totalMeters, quantity, weightOverride) {
-  const { couriers } = getConfig();
+export function calculateShipping(partnerKey, totalMeters, quantity, weightOverride, config) {
+  if (!config) {
+    throw new Error('calculateShipping: config is required');
+  }
+  const { couriers } = config;
   const partner = couriers[partnerKey];
   if (!partner) return null;
 
@@ -236,12 +242,16 @@ export function calculateShipping(partnerKey, totalMeters, quantity, weightOverr
  * @param {number} quantity
  * @param {string} filter - 'all' | 'cheapest' | 'fastest'
  * @param {number} [weightOverride]
+ * @param {object} config - Configuration object
  * @returns {Array} sorted partner results
  */
-export function calculateAllShipping(totalMeters, quantity, filter, weightOverride) {
-  const { couriers } = getConfig();
+export function calculateAllShipping(totalMeters, quantity, filter, weightOverride, config) {
+  if (!config) {
+    throw new Error('calculateAllShipping: config is required');
+  }
+  const { couriers } = config;
   const results = Object.keys(couriers)
-    .map(key => calculateShipping(key, totalMeters, quantity, weightOverride))
+    .map(key => calculateShipping(key, totalMeters, quantity, weightOverride, config))
     .filter(Boolean);
 
   switch (filter) {
@@ -286,9 +296,13 @@ export function getBestCourier(results) {
 /**
  * Get packaging cost based on delivery method.
  * @param {string} deliveryMethod - 'pickup' | 'courier'
+ * @param {object} config - Configuration object
  * @returns {number} 0 or PACKAGING_COST
  */
-export function getPackagingCost(deliveryMethod) {
-  const { pricing } = getConfig();
+export function getPackagingCost(deliveryMethod, config) {
+  if (!config) {
+    throw new Error('getPackagingCost: config is required');
+  }
+  const { pricing } = config;
   return deliveryMethod === 'courier' ? pricing.PACKAGING_COST : 0;
 }

@@ -1,9 +1,7 @@
 /**
  * Format Parser — Expression eval, unit conversion, dimension resolution
- * Pure function module — reads format definitions from configStore.
+ * Pure function module — reads format definitions from config parameter.
  */
-
-import { getConfig } from '../state/configStore.js';
 
 /**
  * Parse a length expression string for Meters format.
@@ -34,10 +32,14 @@ export function parseLength(rawLength) {
  * @param {string} format
  * @param {number} quantity
  * @param {string} [rawLength]
+ * @param {object} config - Configuration object
  * @returns {object|null}
  */
-export function resolveDimensions(format, quantity, rawLength) {
-  const { formats } = getConfig();
+export function resolveDimensions(format, quantity, rawLength, config) {
+  if (!config) {
+    throw new Error('resolveDimensions: config is required');
+  }
+  const { formats } = config;
   const fmt = formats.FORMATS[format];
   if (!fmt) return null;
 
@@ -55,3 +57,4 @@ export function resolveDimensions(format, quantity, rawLength) {
     isSheetFormat,
   };
 }
+
