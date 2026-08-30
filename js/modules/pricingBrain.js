@@ -615,7 +615,9 @@ export function calculateQuote(inputs, config) {
       selectedPartner: selected ? selected.partnerKey : null,
       finalTotal,
       activePrintCost: pricing.printCost,
-      activeConversionCost: conversion.conversionCost
+      activeConversionCost: conversion.conversionCost,
+      printTechnology: s.printTechnology,
+      uvPrintType: s.uvPrintType
     };
 
     if (s.cart && s.cart.length > 0) {
@@ -735,7 +737,9 @@ export function calculateQuote(inputs, config) {
     selectedPartner: selected ? selected.partnerKey : null,
     finalTotal,
     activePrintCost: pricing.printCost,
-    activeConversionCost: conversion.conversionCost
+    activeConversionCost: conversion.conversionCost,
+    printTechnology: s.printTechnology,
+    uvPrintType: s.uvPrintType
   };
 
   if (s.cart && s.cart.length > 0) {
