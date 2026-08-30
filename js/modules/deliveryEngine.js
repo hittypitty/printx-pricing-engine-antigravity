@@ -213,14 +213,31 @@ export function calculateShipping(partnerKey, totalMeters, quantity, weightOverr
     finalWeight = getFabricWeight(totalMeters);
   }
 
-  const slabCount = Math.ceil(finalWeight / partner.slab);
-  const shippingCost = partner.base + (Math.max(slabCount - 1, 0) * partner.add);
+  let shippingCost = 0;
+  let breakdown = '';
+
+  if (partner.slabs && Array.isArray(partner.slabs)) {
+    // Exact fixed slab mapping
+    const matchedSlab = partner.slabs.find(s => finalWeight <= s.maxWeight + 0.00001);
+    if (!matchedSlab) {
+      // Exceeds maximum supported weight slab (> 20 kg) - do not invent/extrapolate rate
+      return null;
+    }
+    shippingCost = matchedSlab.rate;
+    breakdown = `${partner.name} (Up to ${matchedSlab.maxWeight >= 1 ? matchedSlab.maxWeight + ' kg' : (matchedSlab.maxWeight * 1000) + ' g'})`;
+  } else if (partner.slab !== undefined && partner.base !== undefined) {
+    const slabCount = Math.ceil(finalWeight / partner.slab);
+    shippingCost = partner.base + (Math.max(slabCount - 1, 0) * (partner.add || 0));
+    breakdown = `${partner.name} (${slabCount} slabs)`;
+  } else {
+    return null;
+  }
 
   // Debug logging temporarily
   console.log({
     qty: quantity,
     estimatedWeight: finalWeight,
-    courierRate: partner.base,
+    courierRate: partner.base !== undefined ? partner.base : shippingCost,
     shippingCost
   });
 
@@ -231,7 +248,7 @@ export function calculateShipping(partnerKey, totalMeters, quantity, weightOverr
     countedWeight: Math.round(finalWeight * 100) / 100,
     eta: partner.eta,
     trackUrl: partner.trackUrl,
-    breakdown: `${partner.name} (${slabCount} slabs)`,
+    breakdown,
   };
 }
 
