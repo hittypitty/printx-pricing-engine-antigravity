@@ -122,9 +122,23 @@ export async function processImage(file) {
       const widthInchesRaw = originalWidthPx / activeDpi;
       const heightInchesRaw = originalHeightPx / activeDpi;
 
-      // Orientation Logic: width = smaller side, length = larger side
-      const width = Math.min(widthInchesRaw, heightInchesRaw);
-      const length = Math.max(widthInchesRaw, heightInchesRaw);
+      // Orientation Logic:
+      // For Fabric DTF, printable width is fixed at 22.5".
+      // When an uploaded image has one side equal/close to 22.5" (or smaller than 39" with one side matching roll width),
+      // orient so that width = 22.5" and length = other dimension.
+      // Otherwise, width = smaller side (which must fit <= 22.5"), length = larger side.
+      let width, length;
+      const minDim = Math.min(widthInchesRaw, heightInchesRaw);
+      const maxDim = Math.max(widthInchesRaw, heightInchesRaw);
+
+      if (Math.abs(maxDim - MAX_PRINTABLE_WIDTH_INCHES) <= 0.05) {
+        // One side is exactly or approximately 22.5" (e.g. 9.5" × 22.5" or 22.5" × 9.5")
+        width = maxDim;
+        length = minDim;
+      } else {
+        width = minDim;
+        length = maxDim;
+      }
 
       // Validation
       let isValid = true;
