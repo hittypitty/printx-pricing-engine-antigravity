@@ -27,3 +27,12 @@ export const UV_DTF_PRICING = {
   ]
 };
 
+export const SUBLIMATION_PRICING = {
+  A4: 20,
+  A3: 40,
+  ROLL_RATE_PER_METER: 100,
+  ROLL_MIN_PRICE: 20,
+  ROLL_WIDTH: 24,
+  ROLL_METER_INCHES: 39,
+};
+

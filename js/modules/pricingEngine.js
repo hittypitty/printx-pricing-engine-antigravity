@@ -27,8 +27,53 @@ export function calculatePrintCost(dims, config) {
   if (!config) {
     throw new Error('calculatePrintCost: config is required');
   }
-  const { pricing, formats, uvDtfPricing } = config;
+  const { pricing, formats, uvDtfPricing, sublimationPricing = {} } = config;
   const { format, totalMeters, totalSqInches, quantity, isSheetFormat, printTechnology, uvPrintType, length } = dims;
+
+  // Sublimation Logic
+  if (printTechnology === 'sublimation') {
+    const a4Price = sublimationPricing.A4 || 20;
+    const a3Price = sublimationPricing.A3 || 40;
+    const rollRate = sublimationPricing.ROLL_RATE_PER_METER || 100;
+    const minRollPrice = sublimationPricing.ROLL_MIN_PRICE || 20;
+
+    if (format === 'A4') {
+      const printCost = a4Price * quantity;
+      const effectiveRate = totalSqInches > 0 ? (printCost / totalSqInches).toFixed(2) : '0.00';
+      return {
+        printCost,
+        effectiveRate,
+        rateApplied: a4Price,
+        methodLabel: 'Sublimation A4',
+        breakdown: `${quantity} pcs × ₹${a4Price} / pc`,
+      };
+    } else if (format === 'A3') {
+      const printCost = a3Price * quantity;
+      const effectiveRate = totalSqInches > 0 ? (printCost / totalSqInches).toFixed(2) : '0.00';
+      return {
+        printCost,
+        effectiveRate,
+        rateApplied: a3Price,
+        methodLabel: 'Sublimation A3',
+        breakdown: `${quantity} pcs × ₹${a3Price} / pc`,
+      };
+    } else {
+      // Roll / Custom / Meters
+      const len = length || (totalMeters * 39) || 0;
+      const calculatedPrice = (len / 39) * rollRate;
+      const finalPrice = Math.max(minRollPrice, calculatedPrice);
+      // Format printCost: if integer keep whole, otherwise round to 2 decimal places
+      const printCost = Number(finalPrice.toFixed(2));
+      const effectiveRate = totalSqInches > 0 ? (printCost / totalSqInches).toFixed(2) : '0.00';
+      return {
+        printCost,
+        effectiveRate,
+        rateApplied: rollRate,
+        methodLabel: 'Sublimation Roll',
+        breakdown: `${len}" running @ ₹${rollRate} / m (min ₹${minRollPrice})`,
+      };
+    }
+  }
 
   // UV DTF Logic
   if (printTechnology === 'uv_dtf') {

@@ -157,7 +157,7 @@ function updateDOM(container, state) {
   if (bPrint) {
     bPrint.textContent = hasCart
       ? 'Print: ' + state.printBreakdown
-      : 'Print: ' + (state.isSheetFormat ? state.quantity + ' pcs × ₹' + state.rateApplied + ' / pc' : state.totalMeters.toFixed(2) + ' meters × ₹' + state.rateApplied + ' / m');
+      : 'Print: ' + (state.printBreakdown || (state.isSheetFormat ? state.quantity + ' pcs × ₹' + state.rateApplied + ' / pc' : state.totalMeters.toFixed(2) + ' meters × ₹' + state.rateApplied + ' / m'));
   }
 
   const bDelRow = container.querySelector('#breakdown-delivery-row');

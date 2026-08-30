@@ -19,7 +19,7 @@ export function parseLength(rawLength) {
   try {
     const result = Function('"use strict"; return (' + expr + ')')();
     if (typeof result !== 'number' || isNaN(result) || result <= 0) return 0;
-    return Math.ceil(result);
+    return Number(result.toFixed(2));
   } catch (e) {
     return 0;
   }
@@ -43,11 +43,12 @@ export function resolveDimensions(format, quantity, rawLength, config) {
   const fmt = formats.FORMATS[format];
   if (!fmt) return null;
 
-  const isSheetFormat = format !== 'Meters';
-  const length = (format === 'Meters' || format === 'Custom') ? parseLength(rawLength) : fmt.length;
+  const isSheetFormat = format !== 'Meters' && format !== 'Roll';
+  const length = (format === 'Meters' || format === 'Custom' || format === 'Roll') ? parseLength(rawLength) : fmt.length;
   const qty = isSheetFormat ? quantity : 1;
 
   return {
+    format,
     printableWidth: fmt.printableWidth,
     pricingWidth: fmt.pricingWidth,
     length,

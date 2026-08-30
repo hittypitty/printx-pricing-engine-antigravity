@@ -17,12 +17,12 @@ import { parseLength } from './formatParser.js';
  * @param {object} config - Configuration object
  * @returns {{ isValid: boolean, error: string | null }}
  */
-export function validateInputs({ format, quantity, rawLength, printableWidth }, config) {
+export function validateInputs({ format, quantity, rawLength, printableWidth, printTechnology }, config) {
   if (!config) {
     throw new Error('validateInputs: config is required');
   }
   const { formats } = config;
-  const maxWidth = formats.PRINTABLE_WIDTH;
+  const maxWidth = printTechnology === 'sublimation' ? 24 : formats.PRINTABLE_WIDTH;
 
   if (printableWidth > maxWidth) {
     return {
@@ -38,11 +38,11 @@ export function validateInputs({ format, quantity, rawLength, printableWidth }, 
     };
   }
 
-  if (format === 'Meters' || format === 'Custom') {
+  if (format === 'Meters' || format === 'Custom' || format === 'Roll') {
     if (!rawLength || rawLength.trim() === '') {
       return {
         isValid: false,
-        error: `Length is required for ${format === 'Meters' ? 'Meters' : 'Custom'} format.`,
+        error: `Length is required for ${format} format.`,
       };
     }
     if (/[^0-9+\-*x.m\s]/i.test(rawLength)) {
@@ -51,7 +51,7 @@ export function validateInputs({ format, quantity, rawLength, printableWidth }, 
         error: 'Length contains invalid characters.',
       };
     }
-    if (format === 'Custom') {
+    if (format === 'Custom' && printTechnology !== 'sublimation') {
       const parsedLen = parseLength(rawLength);
       if (parsedLen < 8 || parsedLen > 20) {
          return {

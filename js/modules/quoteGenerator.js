@@ -26,20 +26,30 @@ export function generateQuote(state) {
     
     const hasFabric = cart.some(item => item.printTechnology === 'fabric');
     const hasUV = cart.some(item => item.printTechnology === 'uv_dtf');
+    const hasSublimation = cart.some(item => item.printTechnology === 'sublimation');
+    
     let techHeader = 'print';
-    if (hasFabric && !hasUV) techHeader = 'Fabric DTF print';
-    if (hasUV && !hasFabric) techHeader = 'UV DTF print';
+    const techCount = (hasFabric ? 1 : 0) + (hasUV ? 1 : 0) + (hasSublimation ? 1 : 0);
+    if (techCount === 1) {
+      if (hasFabric) techHeader = 'Fabric DTF print';
+      else if (hasUV) techHeader = 'UV DTF print';
+      else if (hasSublimation) techHeader = 'Sublimation print';
+    }
     
     lines.push(`Here is the quote for your ${techHeader} requirement:`);
     lines.push('');
     lines.push('🛒 *Items:*');
 
     cart.forEach((item, index) => {
-      const itemTech = item.printTechnology === 'uv_dtf' 
-        ? `UV DTF (${item.uvPrintType === '3d' ? '3D' : 'Normal'})` 
-        : 'Fabric DTF';
-      const formatLabel = item.format === 'Meters' 
-        ? `Meters (24" x ${item.length}")` 
+      let itemTech = 'Fabric DTF';
+      if (item.printTechnology === 'uv_dtf') {
+        itemTech = `UV DTF (${item.uvPrintType === '3d' ? '3D' : 'Normal'})`;
+      } else if (item.printTechnology === 'sublimation') {
+        itemTech = 'Sublimation';
+      }
+
+      const formatLabel = (item.format === 'Meters' || item.format === 'Roll') 
+        ? `${item.format === 'Roll' ? 'Roll' : 'Meters'} (24" x ${item.length}")` 
         : `${item.format} (${item.pricingWidth}" x ${item.length}")`;
       
       lines.push(`${index + 1}. ${itemTech} — ${formatLabel}`);
@@ -93,7 +103,13 @@ export function generateQuote(state) {
   lines.push('Hello! 🌟 Thank you for reaching out to us.');
   lines.push('');
   
-  const techLabel = printTechnology === 'uv_dtf' ? `UV DTF (${uvPrintType === '3d' ? '3D' : 'Normal'})` : 'Fabric DTF';
+  let techLabel = 'Fabric DTF';
+  if (printTechnology === 'uv_dtf') {
+    techLabel = `UV DTF (${uvPrintType === '3d' ? '3D' : 'Normal'})`;
+  } else if (printTechnology === 'sublimation') {
+    techLabel = 'Sublimation';
+  }
+
   lines.push(`Here is the quote for your ${techLabel} print requirement:`);
   lines.push(`📏 Size: ${format} (${pricingWidth}" x ${length}")`);
 

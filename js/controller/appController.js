@@ -56,7 +56,8 @@ export function removeConversion(id) {
 export function onImagesUpdated(newImages) {
   const state = getState();
   const isUV = state.printTechnology === 'uv_dtf';
-  const printableWidth = isUV ? 11 : 22.5;
+  const isSublimation = state.printTechnology === 'sublimation';
+  const printableWidth = isUV ? 11 : (isSublimation ? 24 : 22.5);
 
   if (newImages && newImages.length > 0) {
     // Only pack images that are completely valid and have no blocking warnings
@@ -66,10 +67,17 @@ export function onImagesUpdated(newImages) {
     // We should show them in the UI but NOT calculate any packing/pricing for them yet.
     if (validToPack.length > 0) {
       const packed = calculatePackedDimensions(validToPack, printableWidth, isUV ? 0.0787 : 0.2);
+      let defaultFormat = 'Meters';
+      if (isUV) {
+        defaultFormat = packed.totalLength <= 8 ? 'A4' : 'A3';
+      } else if (isSublimation) {
+        defaultFormat = 'Roll';
+      }
+
       update({ 
         images: newImages, 
         inputMode: 'image',
-        format: isUV ? (packed.totalLength <= 8 ? 'A4' : 'A3') : 'Meters',
+        format: defaultFormat,
         computedImageLength: packed.totalLength,
         computedImageWidth: packed.totalWidth,
         designCount: validToPack.reduce((sum, img) => sum + img.quantity, 0)
@@ -171,8 +179,9 @@ export function removeManualSize(id) {
 function onManualSizesUpdated(newSizes) {
   const state = getState();
   const isUV = state.printTechnology === 'uv_dtf';
+  const isSublimation = state.printTechnology === 'sublimation';
   const maxW = isUV ? 11 : 24;
-  const printableWidth = isUV ? 11 : 22.5;
+  const printableWidth = isUV ? 11 : (isSublimation ? 24 : 22.5);
 
   if (newSizes && newSizes.length > 0) {
     const pseudoImages = newSizes.map((s, i) => ({
@@ -200,10 +209,17 @@ function onManualSizesUpdated(newSizes) {
       const validToPack = pseudoImages.filter(img => img.width > 0 && img.length > 0);
       const packed = calculatePackedDimensions(validToPack, printableWidth, isUV ? 0.0787 : 0.2);
       
+      let defaultFormat = 'Meters';
+      if (isUV) {
+        defaultFormat = packed.totalLength <= 8 ? 'A4' : 'A3';
+      } else if (isSublimation) {
+        defaultFormat = 'Roll';
+      }
+
       update({ 
         manualSizes: newSizes, 
         inputMode: 'manual-size',
-        format: isUV ? (packed.totalLength <= 8 ? 'A4' : 'A3') : 'Meters',
+        format: defaultFormat,
         computedImageLength: packed.totalLength,
         computedImageWidth: packed.totalWidth,
         designCount: validToPack.reduce((sum, img) => sum + img.quantity, 0)
@@ -224,15 +240,22 @@ export function setPrintTechnology(tech) {
   const updateObj = { printTechnology: tech };
   
   if (tech === 'uv_dtf') {
-    if (s.format === 'Meters' || s.format === 'A2') {
+    if (s.format === 'Meters' || s.format === 'A2' || s.format === 'Roll') {
       updateObj.format = 'Custom';
     } else if (s.format !== 'A4' && s.format !== 'A3' && s.format !== 'Custom') {
       updateObj.format = 'A4';
     }
     updateObj.conversions = []; // Clear conversions for UV DTF
+  } else if (tech === 'sublimation') {
+    if (s.format === 'Meters' || s.format === 'Custom' || s.format === 'A2') {
+      updateObj.format = 'Roll';
+    } else if (s.format !== 'A4' && s.format !== 'A3' && s.format !== 'Roll') {
+      updateObj.format = 'A4';
+    }
+    updateObj.conversions = []; // Clear conversions for Sublimation
   } else {
-    // Switch from UV DTF to Fabric DTF
-    if (s.format === 'Custom') {
+    // Fabric DTF
+    if (s.format === 'Custom' || s.format === 'Roll') {
       updateObj.format = 'Meters';
     }
   }

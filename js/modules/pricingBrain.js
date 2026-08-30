@@ -127,11 +127,11 @@ export function calculateCart(cart, deliveryMethod, courierFilter, selectedPartn
     .reduce((sum, item) => sum + calculateUVDTFA3EquivalentSheets(item.format, item.quantity, item.length), 0);
   const uvWeight = totalUVA3Sheets > 0 ? getUVDTFWeight('A3', totalUVA3Sheets, 16) : 0;
 
-  // 2. Fabric DTF meters weight
-  const totalFabricMeters = cart
-    .filter(item => item.printTechnology === 'fabric')
+  // 2. Fabric DTF & Sublimation meters weight
+  const totalRunningMeters = cart
+    .filter(item => item.printTechnology === 'fabric' || item.printTechnology === 'sublimation')
     .reduce((sum, item) => sum + (item.totalMeters || 0), 0);
-  const fabricWeight = totalFabricMeters > 0 ? getFabricWeight(totalFabricMeters) : 0;
+  const fabricWeight = totalRunningMeters > 0 ? getFabricWeight(totalRunningMeters) : 0;
 
   const combinedWeightVal = uvWeight + fabricWeight;
 
@@ -495,6 +495,74 @@ export function calculateQuote(inputs, config) {
           breakdown: `${bestQuantity} pcs × ₹${bestRateApplied} / pc`,
         };
       }
+    } else if (s.printTechnology === 'sublimation') {
+      // Sublimation
+      const totalMeters = lengthInches / 39;
+      const packedWidth = s.computedImageWidth || 24;
+      
+      bestFormat = 'Roll';
+      bestDims = {
+        printableWidth: 24,
+        pricingWidth: 24,
+        length: lengthInches,
+        quantity: 1,
+        totalMeters,
+        totalSqInches: 24 * lengthInches,
+        isSheetFormat: false,
+      };
+
+      bestPricing = calculatePrintCost({ format: 'Roll', printTechnology: 'sublimation', ...bestDims }, config);
+
+      // Detect if packed items fit into A4 (11x8) or A3 (11x16) sheet formats if cheaper
+      const minDim = Math.min(packedWidth, lengthInches);
+      const maxDim = Math.max(packedWidth, lengthInches);
+
+      if (minDim <= 11.1 && maxDim <= 8.1) {
+        const testDims = {
+          printableWidth: 11,
+          pricingWidth: 11,
+          length: 8,
+          quantity: 1,
+          totalMeters: 8 / 39,
+          totalSqInches: 11 * 8,
+          isSheetFormat: true,
+        };
+        const testPricing = calculatePrintCost({ format: 'A4', printTechnology: 'sublimation', ...testDims }, config);
+        if (testPricing.printCost <= bestPricing.printCost) {
+          bestFormat = 'A4';
+          bestDims = testDims;
+          bestPricing = testPricing;
+        }
+      } else if (minDim <= 11.1 && maxDim <= 16.1) {
+        const testDims = {
+          printableWidth: 11,
+          pricingWidth: 11,
+          length: 16,
+          quantity: 1,
+          totalMeters: 16 / 39,
+          totalSqInches: 11 * 16,
+          isSheetFormat: true,
+        };
+        const testPricing = calculatePrintCost({ format: 'A3', printTechnology: 'sublimation', ...testDims }, config);
+        if (testPricing.printCost <= bestPricing.printCost) {
+          bestFormat = 'A3';
+          bestDims = testDims;
+          bestPricing = testPricing;
+        }
+      }
+
+      if (validItems.length > 0) {
+        const firstItem = validItems[0];
+        let sheetW = 24, sheetH = 39;
+        if (bestFormat === 'A4') {
+          sheetW = 11;
+          sheetH = 8;
+        } else if (bestFormat === 'A3') {
+          sheetW = 11;
+          sheetH = 16;
+        }
+        bestDims.stickersPerSheet = calculateStickersPerSheet(firstItem.width, firstItem.length, sheetW, sheetH, 0.2);
+      }
     } else {
       // Fabric DTF
       const totalMeters = lengthInches / 39;
@@ -520,7 +588,7 @@ export function calculateQuote(inputs, config) {
       const formats = config.formats.FORMATS;
 
       Object.keys(formats).forEach(fmtName => {
-        if (fmtName === 'Meters') return;
+        if (fmtName === 'Meters' || fmtName === 'Roll') return;
         const f = formats[fmtName];
         const fMin = Math.min(f.printableWidth, f.length);
         const fMax = Math.max(f.printableWidth, f.length);
@@ -568,7 +636,7 @@ export function calculateQuote(inputs, config) {
 
     const pricing = bestPricing;
     const dims = bestDims;
-    const conversion = s.printTechnology === 'uv_dtf'
+    const conversion = (s.printTechnology === 'uv_dtf' || s.printTechnology === 'sublimation')
       ? { conversionCost: 0, breakdown: '', breakdownList: [] }
       : calculateConversionCost(s.conversions, config);
 
@@ -643,6 +711,7 @@ export function calculateQuote(inputs, config) {
     quantity: s.quantity,
     rawLength: targetLength,
     printableWidth: fmt ? fmt.printableWidth : 0,
+    printTechnology: s.printTechnology,
   }, config);
 
   if (!validation.isValid) {
@@ -681,7 +750,7 @@ export function calculateQuote(inputs, config) {
   }, config);
 
   // 3: Conversion cost
-  const conversion = s.printTechnology === 'uv_dtf'
+  const conversion = (s.printTechnology === 'uv_dtf' || s.printTechnology === 'sublimation')
     ? { conversionCost: 0, breakdown: '', breakdownList: [] }
     : calculateConversionCost(s.conversions, config);
 
