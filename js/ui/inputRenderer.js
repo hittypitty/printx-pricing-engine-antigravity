@@ -820,7 +820,7 @@ function updateDOM(container, state) {
             <div class="cart-item-sub">
               <span>Qty/Length: ${qtyText}</span>
               <span>•</span>
-              <span>Price: ₹${item.printCost}</span>
+              <span>Price: ₹${Math.ceil(item.printCost)}</span>
               ${conversionText}
             </div>
           </div>

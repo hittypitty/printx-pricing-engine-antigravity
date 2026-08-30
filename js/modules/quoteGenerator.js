@@ -60,7 +60,7 @@ export function generateQuote(state) {
         lines.push(`   • Total Running: ${item.totalMeters.toFixed(2)} meters`);
       }
       
-      lines.push(`   • Print Cost: ₹${item.printCost}`);
+      lines.push(`   • Print Cost: ₹${Math.ceil(item.printCost)}`);
       
       if (item.conversions && item.conversions.length > 0) {
         lines.push(`   • Conversions: ${item.conversionBreakdown}`);
@@ -68,19 +68,19 @@ export function generateQuote(state) {
     });
 
     lines.push('');
-    lines.push(`🖨️ Total Print Cost: ₹${printCost}`);
+    lines.push(`🖨️ Total Print Cost: ₹${Math.ceil(printCost)}`);
     if (conversionCost > 0) {
-      lines.push(`✨ Total Conversion Cost: ₹${conversionCost}`);
+      lines.push(`✨ Total Conversion Cost: ₹${Math.ceil(conversionCost)}`);
     }
 
     if (deliveryMethod === 'pickup') {
       lines.push('🏢 Delivery: Office Pickup (Free)');
     } else {
-      lines.push(`🚚 Delivery Cost: ₹${shippingCost + packagingCost} (${partnerName} - ETA: ${eta})`);
+      lines.push(`🚚 Delivery Cost: ₹${Math.ceil(shippingCost + packagingCost)} (${partnerName} - ETA: ${eta})`);
     }
 
     lines.push('');
-    lines.push(`💰 *Final Total: ₹${finalTotal}*`);
+    lines.push(`💰 *Final Total: ₹${Math.ceil(finalTotal)}*`);
     
     if (deliveryMethod !== 'pickup') {
       lines.push('');
@@ -119,7 +119,7 @@ export function generateQuote(state) {
     lines.push(`📏 Total Running: ${state.totalMeters.toFixed(2)} meters`);
   }
 
-  lines.push(`🖨️ Print Cost: ₹${printCost}`);
+  lines.push(`🖨️ Print Cost: ₹${Math.ceil(printCost)}`);
   
   if (state.conversions && state.conversions.length > 0) {
     lines.push(`✨ Conversions: ${state.conversionBreakdown}`);
@@ -128,11 +128,11 @@ export function generateQuote(state) {
   if (deliveryMethod === 'pickup') {
     lines.push('🏢 Delivery: Office Pickup (Free)');
   } else {
-    lines.push(`🚚 Delivery Cost: ₹${shippingCost + packagingCost} (${partnerName} - ETA: ${eta})`);
+    lines.push(`🚚 Delivery Cost: ₹${Math.ceil(shippingCost + packagingCost)} (${partnerName} - ETA: ${eta})`);
   }
 
   lines.push('');
-  lines.push(`💰 *Final Total: ₹${finalTotal}*`);
+  lines.push(`💰 *Final Total: ₹${Math.ceil(finalTotal)}*`);
   
   if (deliveryMethod !== 'pickup') {
     lines.push('');

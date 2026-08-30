@@ -12,7 +12,7 @@ export function init(container) {
 
 function buildHTML(state) {
   const deliveryCost = state.shippingCost + state.packagingCost;
-  const deliveryText = state.deliveryMethod === 'pickup' ? 'Free' : '₹' + deliveryCost;
+  const deliveryText = state.deliveryMethod === 'pickup' ? 'Free' : '₹' + Math.ceil(deliveryCost);
   const deliveryKpiSub = state.deliveryMethod === 'pickup' ? 'Office Pickup' : `ETA: ${state.eta}`;
   const effectiveRate = state.effectiveRate || '0.00';
   const isUVAuto = state.printTechnology === 'uv_dtf' && (state.inputMode === 'image' || state.inputMode === 'manual-size');
@@ -66,7 +66,7 @@ function buildHTML(state) {
           </div>
           <div class="kpi-block">
             <div class="kpi-label">Print Cost</div>
-            <div class="kpi-value" id="kpi-print-cost" style="color: var(--accent-purple);">₹${state.printCost}</div>
+            <div class="kpi-value" id="kpi-print-cost" style="color: var(--accent-purple);">₹${Math.ceil(state.printCost)}</div>
             <div class="kpi-sub" id="kpi-print-sub">${printSubText}</div>
           </div>
           <div class="kpi-block kpi-delivery">
@@ -93,7 +93,7 @@ function buildHTML(state) {
 
           <div class="final-total" style="text-align: right; border-top: none; padding: 0;">
             <div class="final-total-label">Final Total</div>
-            <div class="final-total-value" id="final-total-value">₹${state.finalTotal}</div>
+            <div class="final-total-value" id="final-total-value">₹${Math.ceil(state.finalTotal)}</div>
           </div>
         </div>
       </div>
@@ -103,7 +103,7 @@ function buildHTML(state) {
 
 function updateDOM(container, state) {
   const deliveryCost = state.shippingCost + state.packagingCost;
-  const deliveryText = state.deliveryMethod === 'pickup' ? 'Free' : '₹' + deliveryCost;
+  const deliveryText = state.deliveryMethod === 'pickup' ? 'Free' : '₹' + Math.ceil(deliveryCost);
   const deliveryKpiSub = state.deliveryMethod === 'pickup' ? 'Office Pickup' : `ETA: ${state.eta}`;
   const effectiveRate = state.effectiveRate || '0.00';
 
@@ -140,7 +140,7 @@ function updateDOM(container, state) {
 
   const printCost = container.querySelector('#kpi-print-cost');
   const printSub = container.querySelector('#kpi-print-sub');
-  if (printCost) printCost.textContent = '₹' + state.printCost;
+  if (printCost) printCost.textContent = '₹' + Math.ceil(state.printCost);
   if (printSub) {
     printSub.textContent = hasCart
       ? 'Mixed Order'
@@ -181,5 +181,5 @@ function updateDOM(container, state) {
 
   // Final total
   const finalTotal = container.querySelector('#final-total-value');
-  if (finalTotal) finalTotal.textContent = '₹' + state.finalTotal;
+  if (finalTotal) finalTotal.textContent = '₹' + Math.ceil(state.finalTotal);
 }
