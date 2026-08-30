@@ -76,13 +76,13 @@ export function generateQuote(state) {
     if (deliveryMethod === 'pickup') {
       lines.push('🏢 Delivery: Office Pickup (Free)');
     } else {
-      lines.push(`🚚 Delivery Cost: ₹${Math.ceil(shippingCost + packagingCost)} (${partnerName} - ETA: ${eta})`);
+      lines.push(`🚚 Delivery Cost: ₹${Math.ceil(shippingCost + packagingCost)} (${partnerName}${eta ? ' - ETA: ' + eta : ''})`);
     }
 
     lines.push('');
     lines.push(`💰 *Final Total: ₹${Math.ceil(finalTotal)}*`);
     
-    if (deliveryMethod !== 'pickup') {
+    if (deliveryMethod === 'courier') {
       lines.push('');
       lines.push('📦 _Note:_');
       lines.push('_Delivery charges are estimated based on current weight._');
@@ -128,13 +128,13 @@ export function generateQuote(state) {
   if (deliveryMethod === 'pickup') {
     lines.push('🏢 Delivery: Office Pickup (Free)');
   } else {
-    lines.push(`🚚 Delivery Cost: ₹${Math.ceil(shippingCost + packagingCost)} (${partnerName} - ETA: ${eta})`);
+    lines.push(`🚚 Delivery Cost: ₹${Math.ceil(shippingCost + packagingCost)} (${partnerName}${eta ? ' - ETA: ' + eta : ''})`);
   }
 
   lines.push('');
   lines.push(`💰 *Final Total: ₹${Math.ceil(finalTotal)}*`);
   
-  if (deliveryMethod !== 'pickup') {
+  if (deliveryMethod === 'courier') {
     lines.push('');
     lines.push('📦 _Note:_');
     lines.push('_Delivery charges are estimated based on current weight._');
