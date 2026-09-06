@@ -57,7 +57,7 @@ export function onImagesUpdated(newImages) {
   const state = getState();
   const isUV = state.printTechnology === 'uv_dtf';
   const isSublimation = state.printTechnology === 'sublimation';
-  const printableWidth = isUV ? 11 : (isSublimation ? 24 : 22.5);
+  const printableWidth = isUV ? 11 : (isSublimation ? 24 : 22.8);
 
   if (newImages && newImages.length > 0) {
     // Only pack images that are completely valid and have no blocking warnings
@@ -105,7 +105,7 @@ export function overrideImageWidth(id, newWidthInches) {
   const newImages = s.images.map(img => {
     if (img.id === id) {
       // If width is cleared or invalid, revert to warning state
-      if (!newWidthInches || newWidthInches <= 0 || newWidthInches > 22.5) {
+      if (!newWidthInches || newWidthInches <= 0 || newWidthInches > 22.8) {
         return {
           ...img,
           width: Number((img.originalWidthPx / img.dpi).toFixed(2)),
@@ -148,17 +148,26 @@ export function setDesignTab(tab) {
   // If switching tabs, we should apply the correct input mode if there's data
   const s = getState();
   if (tab === 'image') {
-    onImagesUpdated(s.images);
+    if (s.images && s.images.length > 0) {
+      onImagesUpdated(s.images);
+    } else {
+      update({ inputMode: 'image', format: 'Meters' });
+      recalculate();
+    }
   } else if (tab === 'manual-size') {
-    onManualSizesUpdated(s.manualSizes);
+    if (s.manualSizes && s.manualSizes.length > 0) {
+      onManualSizesUpdated(s.manualSizes);
+    } else {
+      update({ inputMode: 'manual-size', format: 'Meters' });
+      recalculate();
+    }
   }
 }
 
 export function addManualSize() {
   const s = getState();
   const manualSizes = [...s.manualSizes, { id: Date.now().toString(), width: '', height: '', qty: 1 }];
-  update({ manualSizes });
-  // Don't auto-recalculate if empty, just wait for user to type
+  onManualSizesUpdated(manualSizes);
 }
 
 export function updateManualSize(id, field, value) {
@@ -180,8 +189,8 @@ function onManualSizesUpdated(newSizes) {
   const state = getState();
   const isUV = state.printTechnology === 'uv_dtf';
   const isSublimation = state.printTechnology === 'sublimation';
-  const maxW = isUV ? 11 : 24;
-  const printableWidth = isUV ? 11 : (isSublimation ? 24 : 22.5);
+  const maxW = isUV ? 11 : (isSublimation ? 24 : 22.8);
+  const printableWidth = isUV ? 11 : (isSublimation ? 24 : 22.8);
 
   if (newSizes && newSizes.length > 0) {
     const pseudoImages = newSizes.map((s, i) => ({

@@ -292,6 +292,9 @@ function buildHTML(state) {
             <button class="btn btn-select ${state.deliveryMethod === 'pickup' ? 'active' : ''}" data-action="delivery" data-value="pickup" id="btn-delivery-pickup">
               🏢 Office Pickup
             </button>
+            <button class="btn btn-select ${state.deliveryMethod === 'transport' ? 'active' : ''}" data-action="delivery" data-value="transport" id="btn-delivery-transport">
+              🚚 Local Transport
+            </button>
             <button class="btn btn-select ${state.deliveryMethod === 'courier' ? 'active' : ''}" data-action="delivery" data-value="courier" id="btn-delivery-courier">
               📦 Courier
             </button>

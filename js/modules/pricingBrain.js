@@ -138,7 +138,7 @@ export function calculateCart(cart, deliveryMethod, courierFilter, selectedPartn
   // Delivery details:
   const packagingCost = getPackagingCost(deliveryMethod, config);
   const allPartnerResults = deliveryMethod === 'courier'
-    ? calculateAllShipping(totalFabricMeters, 1, courierFilter, combinedWeightVal, config)
+    ? calculateAllShipping(totalRunningMeters, 1, courierFilter, combinedWeightVal, config)
     : [];
 
   let selected = null;
@@ -150,11 +150,11 @@ export function calculateCart(cart, deliveryMethod, courierFilter, selectedPartn
       : allPartnerResults.find(p => p.partnerKey === recommendedPartner);
   }
 
-  const shippingCost = selected ? selected.shippingCost : 0;
-  const partnerName = selected ? selected.partnerName : 'Office Pickup';
+  const shippingCost = deliveryMethod === 'transport' ? 50 : (selected ? selected.shippingCost : 0);
+  const partnerName = deliveryMethod === 'transport' ? 'Local Transport' : (selected ? selected.partnerName : 'Office Pickup');
   const countedWeight = selected ? selected.countedWeight : Math.round(combinedWeightVal * 100) / 100;
-  const eta = selected ? selected.eta : '';
-  const shippingBreakdown = selected ? selected.breakdown : '';
+  const eta = deliveryMethod === 'transport' ? '' : (selected ? selected.eta : '');
+  const shippingBreakdown = deliveryMethod === 'transport' ? 'Local Transport (₹50)' : (selected ? selected.breakdown : '');
   const finalTotal = Math.ceil(totalPrintCost + totalConversionCost + packagingCost + shippingCost);
 
   // Print breakdown for cart
@@ -566,11 +566,11 @@ export function calculateQuote(inputs, config) {
     } else {
       // Fabric DTF
       const totalMeters = lengthInches / 39;
-      const packedWidth = s.computedImageWidth || 22.5;
+      const packedWidth = s.computedImageWidth || 22.8;
       
       bestFormat = 'Meters';
       bestDims = {
-        printableWidth: 22.5,
+        printableWidth: 22.8,
         pricingWidth: 24, // Meters pricing width
         length: lengthInches,
         quantity: 1,
@@ -618,7 +618,7 @@ export function calculateQuote(inputs, config) {
         const firstItem = validItems[0];
         let sheetW, sheetH;
         if (bestFormat === 'Meters') {
-          sheetW = 22.5;
+          sheetW = 22.8;
           sheetH = 39;
         } else {
           const f = formats[bestFormat];
@@ -626,7 +626,7 @@ export function calculateQuote(inputs, config) {
             sheetW = f.printableWidth;
             sheetH = f.length;
           } else {
-            sheetW = 22.5;
+            sheetW = 22.8;
             sheetH = 39;
           }
         }
@@ -660,11 +660,11 @@ export function calculateQuote(inputs, config) {
         : allPartnerResults.find(p => p.partnerKey === recommendedPartner);
     }
 
-    const shippingCost = selected ? selected.shippingCost : 0;
-    const partnerName = selected ? selected.partnerName : 'Office Pickup';
+    const shippingCost = s.deliveryMethod === 'transport' ? 50 : (selected ? selected.shippingCost : 0);
+    const partnerName = s.deliveryMethod === 'transport' ? 'Local Transport' : (selected ? selected.partnerName : 'Office Pickup');
     const countedWeight = selected ? selected.countedWeight : Math.round(computedWeightVal * 100) / 100;
-    const eta = selected ? selected.eta : '';
-    const shippingBreakdown = selected ? selected.breakdown : '';
+    const eta = s.deliveryMethod === 'transport' ? '' : (selected ? selected.eta : '');
+    const shippingBreakdown = s.deliveryMethod === 'transport' ? 'Local Transport (₹50)' : (selected ? selected.breakdown : '');
     const finalTotal = Math.ceil(pricing.printCost + conversion.conversionCost + packagingCost + shippingCost);
 
     const updateObj = {
@@ -685,7 +685,9 @@ export function calculateQuote(inputs, config) {
       activePrintCost: pricing.printCost,
       activeConversionCost: conversion.conversionCost,
       printTechnology: s.printTechnology,
-      uvPrintType: s.uvPrintType
+      uvPrintType: s.uvPrintType,
+      deliveryMethod: s.deliveryMethod,
+      courierFilter: s.courierFilter
     };
 
     if (s.cart && s.cart.length > 0) {
@@ -776,11 +778,11 @@ export function calculateQuote(inputs, config) {
       : allPartnerResults.find(p => p.partnerKey === recommendedPartner);
   }
 
-  const shippingCost = selected ? selected.shippingCost : 0;
-  const partnerName = selected ? selected.partnerName : 'Office Pickup';
+  const shippingCost = s.deliveryMethod === 'transport' ? 50 : (selected ? selected.shippingCost : 0);
+  const partnerName = s.deliveryMethod === 'transport' ? 'Local Transport' : (selected ? selected.partnerName : 'Office Pickup');
   const countedWeight = selected ? selected.countedWeight : Math.round(computedWeightVal * 100) / 100;
-  const eta = selected ? selected.eta : '';
-  const shippingBreakdown = selected ? selected.breakdown : '';
+  const eta = s.deliveryMethod === 'transport' ? '' : (selected ? selected.eta : '');
+  const shippingBreakdown = s.deliveryMethod === 'transport' ? 'Local Transport (₹50)' : (selected ? selected.breakdown : '');
 
   const finalTotal = Math.ceil(pricing.printCost + conversion.conversionCost + packagingCost + shippingCost);
 
@@ -808,7 +810,10 @@ export function calculateQuote(inputs, config) {
     activePrintCost: pricing.printCost,
     activeConversionCost: conversion.conversionCost,
     printTechnology: s.printTechnology,
-    uvPrintType: s.uvPrintType
+    uvPrintType: s.uvPrintType,
+    deliveryMethod: s.deliveryMethod,
+    courierFilter: s.courierFilter,
+    cart: s.cart
   };
 
   if (s.cart && s.cart.length > 0) {

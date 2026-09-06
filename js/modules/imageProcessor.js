@@ -4,7 +4,7 @@
  */
 
 export const DPI = 300;
-export const MAX_PRINTABLE_WIDTH_INCHES = 22.5;
+export const MAX_PRINTABLE_WIDTH_INCHES = 22.8;
 
 async function getPngDpi(file) {
   return new Promise((resolve) => {
@@ -123,8 +123,8 @@ export async function processImage(file) {
       const heightInchesRaw = originalHeightPx / activeDpi;
 
       // Orientation Logic:
-      // Fabric DTF has a fixed printable width of 22.5".
-      // Compare BOTH detected dimensions against 22.5". Whichever is closest to 22.5" becomes width;
+      // Fabric DTF has a fixed printable width of 22.8".
+      // Compare BOTH detected dimensions against 22.8". Whichever is closest to 22.8" becomes width;
       // the other becomes length.
       let width, length;
       const diffW = Math.abs(widthInchesRaw - MAX_PRINTABLE_WIDTH_INCHES);

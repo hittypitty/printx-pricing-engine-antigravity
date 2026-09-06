@@ -2,11 +2,11 @@
  * Format Definitions & Dual-Width Constants
  * 
  * ROLL_WIDTH (24")      → used ONLY for pricing calculations
- * PRINTABLE_WIDTH (22.5") → used for validation, image fitting, packing
+ * PRINTABLE_WIDTH (22.8") → used for validation, image fitting, packing
  */
 
 export const ROLL_WIDTH = 24;
-export const PRINTABLE_WIDTH = 22.5;
+export const PRINTABLE_WIDTH = 22.8;
 
 export const FORMATS = {
   A4:     { printableWidth: 11,   pricingWidth: 11,   length: 8,    fixedPrice: 70,  label: 'A4' },

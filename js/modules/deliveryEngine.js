@@ -312,7 +312,7 @@ export function getBestCourier(results) {
 
 /**
  * Get packaging cost based on delivery method.
- * @param {string} deliveryMethod - 'pickup' | 'courier'
+ * @param {string} deliveryMethod - 'pickup' | 'courier' | 'transport'
  * @param {object} config - Configuration object
  * @returns {number} 0 or PACKAGING_COST
  */

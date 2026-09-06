@@ -75,6 +75,8 @@ export function generateQuote(state) {
 
     if (deliveryMethod === 'pickup') {
       lines.push('🏢 Delivery: Office Pickup (Free)');
+    } else if (deliveryMethod === 'transport') {
+      lines.push('🚚 Delivery Cost: ₹50 (Local Transport)');
     } else {
       lines.push(`🚚 Delivery Cost: ₹${Math.ceil(shippingCost + packagingCost)} (${partnerName}${eta ? ' - ETA: ' + eta : ''})`);
     }
@@ -127,6 +129,8 @@ export function generateQuote(state) {
 
   if (deliveryMethod === 'pickup') {
     lines.push('🏢 Delivery: Office Pickup (Free)');
+  } else if (deliveryMethod === 'transport') {
+    lines.push('🚚 Delivery Cost: ₹50 (Local Transport)');
   } else {
     lines.push(`🚚 Delivery Cost: ₹${Math.ceil(shippingCost + packagingCost)} (${partnerName}${eta ? ' - ETA: ' + eta : ''})`);
   }

@@ -1,12 +1,12 @@
 /**
  * Packing Engine — 2D Grid Packing
  * Uses sheet-based bin packing with rotation to maximize utilization.
- * Roll width: 22.5", sheet length: 39".
+ * Roll width: 22.8", sheet length: 39".
  * Reports ACTUAL consumed length, not full-sheet allocation.
  */
 
 export const MARGIN_INCHES = 0.2;
-export const PRINTABLE_WIDTH = 22.5;
+export const PRINTABLE_WIDTH = 22.8;
 export const SHEET_LENGTH = 39;
 
 /**
@@ -15,7 +15,7 @@ export const SHEET_LENGTH = 39;
  *
  * Returns { colsAcross, rowsNeeded, lengthConsumed, cellW, cellH }
  */
-function bestContinuousLayout(imgWidth, imgLength, qty, printableWidth = 22.5, margin = 0.2) {
+function bestContinuousLayout(imgWidth, imgLength, qty, printableWidth = 22.8, margin = 0.2) {
   // Single copy: no margins needed — use exact image dimensions
   if (qty === 1) {
     return { colsAcross: 1, rowsNeeded: 1, lengthConsumed: imgLength, cellW: imgWidth, cellH: imgLength };
@@ -61,7 +61,7 @@ function bestContinuousLayout(imgWidth, imgLength, qty, printableWidth = 22.5, m
  * @param {Array<Object>} images - Array of image objects from imageProcessor
  * @returns {Object} { totalWidth, totalLength, imageCount, sheetDetails }
  */
-export function calculatePackedDimensions(images, printableWidth = 22.5, margin = 0.2) {
+export function calculatePackedDimensions(images, printableWidth = 22.8, margin = 0.2) {
   if (!images || images.length === 0) {
     return { totalWidth: 0, totalLength: 0, imageCount: 0, sheetDetails: [] };
   }

@@ -13,7 +13,7 @@ export function init(container) {
 function buildHTML(state) {
   const deliveryCost = state.shippingCost + state.packagingCost;
   const deliveryText = state.deliveryMethod === 'pickup' ? 'Free' : '₹' + Math.ceil(deliveryCost);
-  const deliveryKpiSub = state.deliveryMethod === 'pickup' ? 'Office Pickup' : `ETA: ${state.eta}`;
+  const deliveryKpiSub = state.deliveryMethod === 'pickup' ? 'Office Pickup' : (state.deliveryMethod === 'transport' ? 'Local Transport' : `ETA: ${state.eta}`);
   const effectiveRate = state.effectiveRate || '0.00';
   const isUVAuto = state.printTechnology === 'uv_dtf' && (state.inputMode === 'image' || state.inputMode === 'manual-size');
   
@@ -86,7 +86,7 @@ function buildHTML(state) {
                 ${hasCart ? 'Print: ' + state.printBreakdown : 'Print: ' + (state.isSheetFormat ? state.quantity + ' pcs × ₹' + state.rateApplied + ' / pc' : state.totalMeters.toFixed(2) + ' meters × ₹' + state.rateApplied + ' / m')}
               </div>
               <div class="breakdown-badge" id="breakdown-conversion-row" style="display: ${showConversion ? 'inline-block' : 'none'}; background: #e0e7ff; color: #4338ca;">Conv: ${state.conversionBreakdown}</div>
-              <div class="breakdown-badge breakdown-delivery-badge" id="breakdown-delivery-row" style="display: ${state.deliveryMethod === 'pickup' ? 'none' : 'inline-block'};">Ship: ${state.shippingBreakdown || state.partnerName} + ₹${state.packagingCost} Pkg</div>
+              <div class="breakdown-badge breakdown-delivery-badge" id="breakdown-delivery-row" style="display: ${state.deliveryMethod === 'pickup' ? 'none' : 'inline-block'};">Ship: ${state.deliveryMethod === 'transport' ? 'Local Transport (₹50)' : (state.shippingBreakdown || state.partnerName) + ' + ₹' + state.packagingCost + ' Pkg'}</div>
             </div>
             <div id="breakdown-effective-rate" style="font-size: 12px; color: var(--text-muted); margin-top: 10px;">Effective print rate: ₹${effectiveRate} / sq in</div>
           </div>
@@ -163,7 +163,11 @@ function updateDOM(container, state) {
   const bDelRow = container.querySelector('#breakdown-delivery-row');
   if (bDelRow) {
     bDelRow.style.display = state.deliveryMethod === 'pickup' ? 'none' : 'inline-block';
-    bDelRow.textContent = 'Ship: ' + (state.shippingBreakdown || state.partnerName) + ' + ₹' + state.packagingCost + ' Pkg';
+    if (state.deliveryMethod === 'transport') {
+      bDelRow.textContent = 'Ship: Local Transport (₹50)';
+    } else {
+      bDelRow.textContent = 'Ship: ' + (state.shippingBreakdown || state.partnerName) + ' + ₹' + state.packagingCost + ' Pkg';
+    }
   }
 
   const bConvRow = container.querySelector('#breakdown-conversion-row');
