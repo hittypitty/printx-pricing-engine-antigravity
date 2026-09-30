@@ -70,29 +70,15 @@ function buildDefaults() {
   };
 }
 
-// --- Load from localStorage ---
-function loadFromStorage() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw, reviver) : {};
-  } catch (e) {
-    console.warn('ConfigStore: Failed to load from localStorage', e);
-    return {};
-  }
-}
-
-// --- Save to localStorage ---
-function saveToStorage(config) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(config, replacer));
-  } catch (e) {
-    console.warn('ConfigStore: Failed to save to localStorage', e);
-  }
-}
-
 // --- State ---
 const defaults = buildDefaults();
-let config = deepMerge(defaults, loadFromStorage());
+// Clear any stale local cache so all devices are 100% synchronized with codebase configs
+try {
+  localStorage.removeItem(STORAGE_KEY);
+} catch (e) {
+  // Ignore storage access errors
+}
+let config = deepClone(defaults);
 const listeners = [];
 
 // --- Public API ---

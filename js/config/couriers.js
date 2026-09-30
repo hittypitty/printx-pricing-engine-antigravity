@@ -6,8 +6,8 @@
 export const COURIERS = {
   tirupati: {
     name: 'Tirupati',
-    base: 50,
-    add: 50,
+    base: 60,
+    add: 60,
     baseWeight: 1.0,
     slab: 1.0,
     eta: '4-7 days',
@@ -24,11 +24,11 @@ export const COURIERS = {
   },
   dtdc_express: {
     name: 'DTDC Express',
-    base: 120,
+    base: 160,
     add: 110,
     baseWeight: 1.0,
     slab: 0.5,
-    eta: '4-5 days',
+    eta: '3-5 days',
     trackUrl: 'https://www.dtdc.in/tracking.asp',
   },
   bluedart: {
