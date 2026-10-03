@@ -1,8 +1,22 @@
 /**
  * Header — PrintX reference: LOGO | PRICING ENGINE ... WhatsApp + phone
+ * Also renders the page navigation tabs (Pricing Engine / BV Catalog / Manage Products).
+ * Active tab comes from the container's data-page attribute.
  */
 
 import { getConfig, subscribeConfig } from '../state/configStore.js';
+
+const NAV_ITEMS = [
+  { page: 'pricing', label: 'Pricing Engine', href: 'index.html' },
+  { page: 'catalog', label: 'BV Catalog', href: 'catalog.html' },
+  { page: 'manage', label: 'Manage Products', href: 'catalog-admin.html' },
+];
+
+const SUBTITLES = {
+  pricing: 'PRICING ENGINE',
+  catalog: 'BV CATALOG',
+  manage: 'MANAGE PRODUCTS',
+};
 
 export function init(container) {
   render(container);
@@ -13,10 +27,16 @@ export function init(container) {
 
 function render(container) {
   const { branding } = getConfig();
+  const page = container.dataset.page || 'pricing';
+  const subtitle = SUBTITLES[page] || SUBTITLES.pricing;
   const logoSrc = branding.logoUrl || 'assets/images/logo.png';
   const logoHTML = `<img src="${logoSrc}" alt="Company Logo" class="header-logo" id="header-logo" />`;
 
   const whatsappLink = 'https://wa.me/+917869581020';
+
+  const navHTML = NAV_ITEMS.map(item => `
+    <a href="${item.href}" class="app-nav-link ${item.page === page ? 'active' : ''}" ${item.page === page ? 'aria-current="page"' : ''}>${item.label}</a>
+  `).join('');
 
   container.innerHTML = `
     <div class="header-inner">
@@ -25,7 +45,7 @@ function render(container) {
         <div class="header-text">
           <div class="header-separator"></div>
           <span class="header-subtitle" style="display: flex; align-items: baseline; gap: 8px;">
-            PRICING ENGINE 
+            ${subtitle}
             <span style="font-size: 11px; text-transform: none; letter-spacing: normal; color: var(--text-muted); font-weight: 500; background: var(--bg-input); padding: 2px 6px; border-radius: 4px;">by Bazarville</span>
           </span>
         </div>
@@ -41,6 +61,7 @@ function render(container) {
         </div>
       </div>
     </div>
+    <nav class="app-nav" aria-label="Main">${navHTML}</nav>
   `;
 }
 
