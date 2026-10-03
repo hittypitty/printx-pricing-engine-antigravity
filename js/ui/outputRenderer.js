@@ -13,7 +13,7 @@ export function init(container) {
 function buildHTML(state) {
   const deliveryCost = state.shippingCost + state.packagingCost;
   const deliveryText = state.deliveryMethod === 'pickup' ? 'Free' : '₹' + Math.ceil(deliveryCost);
-  const deliveryKpiSub = state.deliveryMethod === 'pickup' ? 'Office Pickup' : (state.deliveryMethod === 'transport' ? 'Local Transport' : (state.eta ? `ETA: ${state.eta}` : (state.partnerName || '')));
+  const deliveryKpiSub = state.deliveryMethod === 'pickup' ? 'Office Pickup' : (state.deliveryMethod === 'transport' ? 'Local Transport' : `ETA: ${state.eta}`);
   const effectiveRate = state.effectiveRate || '0.00';
   const isUVAuto = state.printTechnology === 'uv_dtf' && (state.inputMode === 'image' || state.inputMode === 'manual-size');
   
@@ -86,7 +86,7 @@ function buildHTML(state) {
                 ${hasCart ? 'Print: ' + state.printBreakdown : 'Print: ' + (state.isSheetFormat ? state.quantity + ' pcs × ₹' + state.rateApplied + ' / pc' : state.totalMeters.toFixed(2) + ' meters × ₹' + state.rateApplied + ' / m')}
               </div>
               <div class="breakdown-badge" id="breakdown-conversion-row" style="display: ${showConversion ? 'inline-block' : 'none'}; background: #e0e7ff; color: #4338ca;">Conv: ${state.conversionBreakdown}</div>
-              <div class="breakdown-badge breakdown-delivery-badge" id="breakdown-delivery-row" style="display: ${state.deliveryMethod === 'pickup' ? 'none' : 'inline-block'};">Ship: ${state.deliveryMethod === 'transport' ? (state.shippingBreakdown || 'Local Transport') : (state.shippingBreakdown || state.partnerName) + ' + ₹' + state.packagingCost + ' Pkg'}</div>
+              <div class="breakdown-badge breakdown-delivery-badge" id="breakdown-delivery-row" style="display: ${state.deliveryMethod === 'pickup' ? 'none' : 'inline-block'};">Ship: ${state.deliveryMethod === 'transport' ? 'Local Transport (₹50)' : (state.shippingBreakdown || state.partnerName) + ' + ₹' + state.packagingCost + ' Pkg'}</div>
             </div>
             <div id="breakdown-effective-rate" style="font-size: 12px; color: var(--text-muted); margin-top: 10px;">Effective print rate: ₹${effectiveRate} / sq in</div>
           </div>
@@ -104,7 +104,7 @@ function buildHTML(state) {
 function updateDOM(container, state) {
   const deliveryCost = state.shippingCost + state.packagingCost;
   const deliveryText = state.deliveryMethod === 'pickup' ? 'Free' : '₹' + Math.ceil(deliveryCost);
-  const deliveryKpiSub = state.deliveryMethod === 'pickup' ? 'Office Pickup' : (state.deliveryMethod === 'transport' ? 'Local Transport' : (state.eta ? `ETA: ${state.eta}` : (state.partnerName || '')));
+  const deliveryKpiSub = state.deliveryMethod === 'pickup' ? 'Office Pickup' : `ETA: ${state.eta}`;
   const effectiveRate = state.effectiveRate || '0.00';
 
   const isUVAuto = state.printTechnology === 'uv_dtf' && (state.inputMode === 'image' || state.inputMode === 'manual-size');
@@ -150,7 +150,7 @@ function updateDOM(container, state) {
   const delCost = container.querySelector('#kpi-delivery-cost');
   const delSub = container.querySelector('#kpi-delivery-sub');
   if (delCost) delCost.textContent = deliveryText;
-  if (delSub) delSub.textContent = deliveryKpiSub;
+  if (delSub) delSub.innerHTML = deliveryKpiSub;
 
   // Breakdown badges
   const bPrint = container.querySelector('#breakdown-print');
@@ -164,7 +164,7 @@ function updateDOM(container, state) {
   if (bDelRow) {
     bDelRow.style.display = state.deliveryMethod === 'pickup' ? 'none' : 'inline-block';
     if (state.deliveryMethod === 'transport') {
-      bDelRow.textContent = 'Ship: ' + (state.shippingBreakdown || 'Local Transport');
+      bDelRow.textContent = 'Ship: Local Transport (₹50)';
     } else {
       bDelRow.textContent = 'Ship: ' + (state.shippingBreakdown || state.partnerName) + ' + ₹' + state.packagingCost + ' Pkg';
     }

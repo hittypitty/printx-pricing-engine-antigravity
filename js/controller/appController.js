@@ -9,8 +9,6 @@ import { getUVDTFWeight, getFabricWeight } from '../modules/deliveryEngine.js';
 import { calculatePackedDimensions } from '../modules/packingEngine.js';
 import { calculateQuote } from '../modules/pricingBrain.js';
 import { update, getState } from '../state/store.js';
-import { getPrintableWidthFor, getPackingMarginFor } from '../config/formats.js';
-import { validateImageSize } from '../modules/imageProcessor.js';
 
 /**
  * Full recalculation pipeline. Called on any input change.
@@ -57,20 +55,18 @@ export function removeConversion(id) {
 
 export function onImagesUpdated(newImages) {
   const state = getState();
-  const tech = state.printTechnology;
-  const isUV = tech === 'uv_dtf';
-  const isSublimation = tech === 'sublimation';
-  const printableWidth = getPrintableWidthFor(tech);
+  const isUV = state.printTechnology === 'uv_dtf';
+  const isSublimation = state.printTechnology === 'sublimation';
+  const printableWidth = isUV ? 11 : (isSublimation ? 24 : 22.8);
 
   if (newImages && newImages.length > 0) {
-    // Re-check every image against the CURRENT technology's printable width
-    const images = newImages.map(img => validateImageSize(img, printableWidth));
-
-    // Only pack images that are valid and have no unresolved size warning
-    const validToPack = images.filter(img => img.isValid && (!img.hasWarning || img.isOverridden));
-
+    // Only pack images that are completely valid and have no blocking warnings
+    const validToPack = newImages.filter(img => img.isValid && (!img.hasWarning || img.isOverridden));
+    
+    // If there are images but NONE are validToPack, it means they are all blocked by warnings or errors.
+    // We should show them in the UI but NOT calculate any packing/pricing for them yet.
     if (validToPack.length > 0) {
-      const packed = calculatePackedDimensions(validToPack, printableWidth, getPackingMarginFor(tech));
+      const packed = calculatePackedDimensions(validToPack, printableWidth, isUV ? 0.0787 : 0.2);
       let defaultFormat = 'Meters';
       if (isUV) {
         defaultFormat = packed.totalLength <= 8 ? 'A4' : 'A3';
@@ -78,8 +74,8 @@ export function onImagesUpdated(newImages) {
         defaultFormat = 'Roll';
       }
 
-      update({
-        images,
+      update({ 
+        images: newImages, 
         inputMode: 'image',
         format: defaultFormat,
         computedImageLength: packed.totalLength,
@@ -87,21 +83,17 @@ export function onImagesUpdated(newImages) {
         designCount: validToPack.reduce((sum, img) => sum + img.quantity, 0)
       });
     } else {
-      // Images exist but none can be priced yet (invalid or awaiting size confirmation)
-      update({
-        images,
+      update({ 
+        images: newImages, 
         inputMode: 'image',
         computedImageLength: 0,
-        computedImageWidth: 0,
         designCount: 0
       });
     }
   } else {
-    update({
-      images: [],
+    update({ 
+      images: [], 
       inputMode: 'manual',
-      computedImageLength: 0,
-      computedImageWidth: 0,
       designCount: 0
     });
   }
@@ -113,8 +105,7 @@ export function overrideImageWidth(id, newWidthInches) {
   const newImages = s.images.map(img => {
     if (img.id === id) {
       // If width is cleared or invalid, revert to warning state
-      const maxWidth = getPrintableWidthFor(s.printTechnology);
-      if (!newWidthInches || newWidthInches <= 0 || newWidthInches > maxWidth) {
+      if (!newWidthInches || newWidthInches <= 0 || newWidthInches > 22.8) {
         return {
           ...img,
           width: Number((img.originalWidthPx / img.dpi).toFixed(2)),
@@ -154,15 +145,22 @@ export function overrideImageWidth(id, newWidthInches) {
 
 export function setDesignTab(tab) {
   update({ designTab: tab });
+  // If switching tabs, we should apply the correct input mode if there's data
   const s = getState();
-  if (tab === 'image' && s.images && s.images.length > 0) {
-    onImagesUpdated(s.images);
-  } else if (tab === 'manual-size' && s.manualSizes && s.manualSizes.length > 0) {
-    onManualSizesUpdated(s.manualSizes);
-  } else {
-    // No designs on this tab yet → fall back to manual format pricing (format/length stay editable)
-    update({ inputMode: 'manual', computedImageLength: 0, computedImageWidth: 0, designCount: 0 });
-    recalculate();
+  if (tab === 'image') {
+    if (s.images && s.images.length > 0) {
+      onImagesUpdated(s.images);
+    } else {
+      update({ inputMode: 'image', format: 'Meters' });
+      recalculate();
+    }
+  } else if (tab === 'manual-size') {
+    if (s.manualSizes && s.manualSizes.length > 0) {
+      onManualSizesUpdated(s.manualSizes);
+    } else {
+      update({ inputMode: 'manual-size', format: 'Meters' });
+      recalculate();
+    }
   }
 }
 
@@ -189,10 +187,10 @@ export function removeManualSize(id) {
 
 function onManualSizesUpdated(newSizes) {
   const state = getState();
-  const tech = state.printTechnology;
-  const isUV = tech === 'uv_dtf';
-  const isSublimation = tech === 'sublimation';
-  const printableWidth = getPrintableWidthFor(tech);
+  const isUV = state.printTechnology === 'uv_dtf';
+  const isSublimation = state.printTechnology === 'sublimation';
+  const maxW = isUV ? 11 : (isSublimation ? 24 : 22.8);
+  const printableWidth = isUV ? 11 : (isSublimation ? 24 : 22.8);
 
   if (newSizes && newSizes.length > 0) {
     const pseudoImages = newSizes.map((s, i) => ({
@@ -202,25 +200,24 @@ function onManualSizesUpdated(newSizes) {
       quantity: Number(s.qty) || 1,
       name: `Size ${i + 1}`
     }));
-
+    
+    // Check if any size is completely invalid, but only block packing if they entered something
     let hasInvalid = false;
     let allEmpty = true;
     pseudoImages.forEach(img => {
       if (img.width > 0 || img.length > 0) allEmpty = false;
-      // Designs can be rotated → only the shorter side must fit the printable width
-      if (img.width > 0 && img.length > 0 && Math.min(img.width, img.length) > printableWidth) hasInvalid = true;
-      if (img.width < 0 || img.length < 0) hasInvalid = true;
+      if (img.width > maxW || img.width < 0 || img.length < 0) hasInvalid = true;
     });
 
     if (allEmpty) {
-      update({ manualSizes: newSizes, inputMode: 'manual', computedImageLength: 0, computedImageWidth: 0, designCount: 0 });
+      update({ manualSizes: newSizes, inputMode: 'manual', designCount: 0 });
     } else if (hasInvalid) {
-      update({ manualSizes: newSizes, inputMode: 'manual-size', computedImageLength: 0, computedImageWidth: 0 });
+      update({ manualSizes: newSizes, inputMode: 'manual-size', computedImageLength: 0 });
     } else {
       // Filter out incomplete sizes for calculation, but keep them in UI state
       const validToPack = pseudoImages.filter(img => img.width > 0 && img.length > 0);
-      const packed = calculatePackedDimensions(validToPack, printableWidth, getPackingMarginFor(tech));
-
+      const packed = calculatePackedDimensions(validToPack, printableWidth, isUV ? 0.0787 : 0.2);
+      
       let defaultFormat = 'Meters';
       if (isUV) {
         defaultFormat = packed.totalLength <= 8 ? 'A4' : 'A3';
@@ -228,8 +225,8 @@ function onManualSizesUpdated(newSizes) {
         defaultFormat = 'Roll';
       }
 
-      update({
-        manualSizes: newSizes,
+      update({ 
+        manualSizes: newSizes, 
         inputMode: 'manual-size',
         format: defaultFormat,
         computedImageLength: packed.totalLength,
@@ -238,11 +235,9 @@ function onManualSizesUpdated(newSizes) {
       });
     }
   } else {
-    update({
-      manualSizes: [],
+    update({ 
+      manualSizes: [], 
       inputMode: 'manual',
-      computedImageLength: 0,
-      computedImageWidth: 0,
       designCount: 0
     });
   }
@@ -327,9 +322,6 @@ export function addToCart() {
   };
 
   const newCart = [...(s.cart || []), cartItem];
-
-  // Free preview image memory for the designs that were just added
-  (s.images || []).forEach(img => { if (img.dataUrl) URL.revokeObjectURL(img.dataUrl); });
 
   update({
     cart: newCart,

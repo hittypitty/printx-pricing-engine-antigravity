@@ -1,7 +1,6 @@
 /**
  * Image Processor
- * Reads PNG files, calculates dimensions in inches (embedded DPI or 300 DPI fallback),
- * applies orientation rules, and validates constraints.
+ * Reads PNG files, calculates dimensions in inches (300 DPI), applies orientation rules, and validates constraints.
  */
 
 export const DPI = 300;
@@ -14,23 +13,23 @@ async function getPngDpi(file) {
       try {
         const view = new DataView(e.target.result);
         if (view.getUint32(0) !== 0x89504e47) return resolve(null); // Not a PNG
-
+        
         let offset = 8;
-        while (offset + 8 <= view.byteLength) {
+        while (offset < view.byteLength) {
           const length = view.getUint32(offset);
           const type = view.getUint32(offset + 4);
-
+          
           if (type === 0x70485973) { // 'pHYs' chunk
-            if (offset + 17 > view.byteLength) return resolve(null);
             const ppuX = view.getUint32(offset + 8);
             const unit = view.getUint8(offset + 16);
-            if (unit === 1 && ppuX > 0) { // 1 means pixels per meter
+            if (unit === 1) { // 1 means pixels per meter
               return resolve(Math.round(ppuX * 0.0254));
+            } else {
+              return resolve(null);
             }
-            return resolve(null);
           }
           if (type === 0x49444154) break; // 'IDAT' chunk, pHYs should be before this
-
+          
           offset += length + 12;
         }
         resolve(null);
@@ -44,95 +43,32 @@ async function getPngDpi(file) {
 }
 
 /**
- * (Re)apply size validation for a processed image against a printable width.
- * Designs can be rotated, so an image only fails if its SHORTER side is wider
- * than the printable width. Transparency / read errors are kept as-is.
- *
- * @param {object} img - processed image object
- * @param {number} maxWidth - printable width for the current print technology
- * @returns {object} new image object
- */
-export function validateImageSize(img, maxWidth = MAX_PRINTABLE_WIDTH_INCHES) {
-  // Unreadable images (no pixel data) — nothing to re-check
-  if (!img || !img.originalWidthPx) return img;
-
-  if (img.hasTransparency === false) {
-    return {
-      ...img,
-      isValid: false,
-      error: 'Image does not have a transparent background. DTF requires PNG with transparent background.',
-      hasWarning: false,
-      warning: null,
-      requiresOverride: false,
-    };
-  }
-
-  const shortSide = Math.min(img.width, img.length);
-
-  if (img.isOverridden) {
-    if (shortSide > maxWidth) {
-      return {
-        ...img,
-        isValid: false,
-        error: `Size ${img.width}" × ${img.length}" exceeds the printable width of ${maxWidth}".`,
-        hasWarning: false,
-        warning: null,
-      };
-    }
-    return { ...img, isValid: true, error: null, hasWarning: false, warning: null };
-  }
-
-  if (shortSide > maxWidth) {
-    if (img.dpiConfidence === 'high') {
-      return {
-        ...img,
-        isValid: false,
-        error: `Width exceeds maximum printable size of ${maxWidth}".`,
-        hasWarning: false,
-        warning: null,
-        requiresOverride: false,
-      };
-    }
-    return {
-      ...img,
-      isValid: true,
-      error: null,
-      hasWarning: true,
-      warning: `⚠️ Size may exceed printable width (${maxWidth}"). Please confirm actual size.`,
-      requiresOverride: true,
-    };
-  }
-
-  return { ...img, isValid: true, error: null, hasWarning: false, warning: null, requiresOverride: false };
-}
-
-/**
  * Process a single image file.
- * @param {File} file
- * @param {number} [maxWidth] - printable width for the current print technology
+ * @param {File} file 
  * @returns {Promise<Object>} Image metadata and validation status
  */
-export async function processImage(file, maxWidth = MAX_PRINTABLE_WIDTH_INCHES) {
-  const id = Date.now().toString(36) + Math.random().toString(36).substr(2);
-
-  // Validate file type natively just in case
-  if (file.type !== 'image/png') {
-    return {
-      id,
-      name: file.name,
-      isValid: false,
-      error: 'Only PNG files are supported.'
-    };
-  }
-
+export async function processImage(file) {
   const detectedDpi = await getPngDpi(file);
-  const activeDpi = detectedDpi || DPI;
+  const activeDpi = detectedDpi || 300;
   const dpiConfidence = detectedDpi ? 'high' : 'low';
 
   return new Promise((resolve) => {
+    const id = Date.now().toString(36) + Math.random().toString(36).substr(2);
+    
+    // Validate file type natively just in case
+    if (file.type !== 'image/png') {
+      resolve({
+        id,
+        name: file.name,
+        isValid: false,
+        error: 'Only PNG files are supported.'
+      });
+      return;
+    }
+
     const dataUrl = URL.createObjectURL(file);
     const img = new Image();
-
+    
     img.onload = () => {
       const originalWidthPx = img.naturalWidth;
       const originalHeightPx = img.naturalHeight;
@@ -145,8 +81,8 @@ export async function processImage(file, maxWidth = MAX_PRINTABLE_WIDTH_INCHES) 
         // Use a scaled-down version if image is very large to save memory
         const maxDim = 512;
         const scale = Math.min(1, maxDim / Math.max(originalWidthPx, originalHeightPx));
-        const cw = Math.max(1, Math.round(originalWidthPx * scale));
-        const ch = Math.max(1, Math.round(originalHeightPx * scale));
+        const cw = Math.round(originalWidthPx * scale);
+        const ch = Math.round(originalHeightPx * scale);
         canvas.width = cw;
         canvas.height = ch;
         const ctx = canvas.getContext('2d');
@@ -155,10 +91,11 @@ export async function processImage(file, maxWidth = MAX_PRINTABLE_WIDTH_INCHES) 
 
         // Sample positions: corners, edge midpoints, and a grid of border pixels
         const samplePoints = [
-          [0, 0], [cw - 1, 0], [0, ch - 1], [cw - 1, ch - 1],
-          [Math.floor(cw / 2), 0], [Math.floor(cw / 2), ch - 1],
-          [0, Math.floor(ch / 2)], [cw - 1, Math.floor(ch / 2)],
+          [0, 0], [cw - 1, 0], [0, ch - 1], [cw - 1, ch - 1],             // corners
+          [Math.floor(cw / 2), 0], [Math.floor(cw / 2), ch - 1],           // top/bottom mid
+          [0, Math.floor(ch / 2)], [cw - 1, Math.floor(ch / 2)],           // left/right mid
         ];
+        // Also sample every 10th pixel along all four edges
         for (let x = 0; x < cw; x += 10) {
           samplePoints.push([x, 0]);
           samplePoints.push([x, ch - 1]);
@@ -170,7 +107,8 @@ export async function processImage(file, maxWidth = MAX_PRINTABLE_WIDTH_INCHES) 
 
         for (const [x, y] of samplePoints) {
           const idx = (y * cw + x) * 4;
-          if (data[idx + 3] < 250) {  // Found a transparent/semi-transparent pixel
+          const alpha = data[idx + 3];
+          if (alpha < 250) {  // Found a transparent/semi-transparent pixel
             hasTransparency = true;
             break;
           }
@@ -184,11 +122,14 @@ export async function processImage(file, maxWidth = MAX_PRINTABLE_WIDTH_INCHES) 
       const widthInchesRaw = originalWidthPx / activeDpi;
       const heightInchesRaw = originalHeightPx / activeDpi;
 
-      // Orientation: the side closest to the roll width becomes "width".
-      // Packing still tries both orientations.
+      // Orientation Logic:
+      // Fabric DTF has a fixed printable width of 22.8".
+      // Compare BOTH detected dimensions against 22.8". Whichever is closest to 22.8" becomes width;
+      // the other becomes length.
       let width, length;
       const diffW = Math.abs(widthInchesRaw - MAX_PRINTABLE_WIDTH_INCHES);
       const diffH = Math.abs(heightInchesRaw - MAX_PRINTABLE_WIDTH_INCHES);
+
       if (diffW <= diffH) {
         width = widthInchesRaw;
         length = heightInchesRaw;
@@ -197,7 +138,28 @@ export async function processImage(file, maxWidth = MAX_PRINTABLE_WIDTH_INCHES) 
         length = widthInchesRaw;
       }
 
-      const base = {
+      // Validation
+      let isValid = true;
+      let error = null;
+      let hasWarning = false;
+      let warning = null;
+      let requiresOverride = false;
+
+      if (!hasTransparency) {
+        isValid = false;
+        error = 'Image does not have a transparent background. DTF requires PNG with transparent background.';
+      } else if (width > MAX_PRINTABLE_WIDTH_INCHES) {
+        if (dpiConfidence === 'high') {
+          isValid = false;
+          error = `Width exceeds maximum printable size of ${MAX_PRINTABLE_WIDTH_INCHES}".`;
+        } else {
+          hasWarning = true;
+          warning = `⚠️ Size may exceed printable width (${MAX_PRINTABLE_WIDTH_INCHES}"). Please confirm actual size.`;
+          requiresOverride = true;
+        }
+      }
+
+      resolve({
         id,
         name: file.name,
         file,
@@ -206,23 +168,20 @@ export async function processImage(file, maxWidth = MAX_PRINTABLE_WIDTH_INCHES) 
         originalHeightPx,
         width: Number(width.toFixed(2)),
         length: Number(length.toFixed(2)),
-        quantity: 1,
-        isValid: true,
-        error: null,
+        quantity: 1, // Default quantity
+        isValid,
+        error,
         dpi: activeDpi,
         dpiConfidence,
-        hasWarning: false,
-        warning: null,
-        requiresOverride: false,
+        hasWarning,
+        warning,
+        requiresOverride,
         isOverridden: false,
-        hasTransparency,
-      };
-
-      resolve(validateImageSize(base, maxWidth));
+        hasTransparency
+      });
     };
 
     img.onerror = () => {
-      URL.revokeObjectURL(dataUrl);
       resolve({
         id,
         name: file.name,

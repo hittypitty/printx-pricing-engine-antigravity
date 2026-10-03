@@ -7,16 +7,6 @@ import { subscribe, getState } from '../state/store.js';
 import { onInputChange, onImagesUpdated, addConversion, updateConversion, removeConversion, setDesignTab, addManualSize, updateManualSize, removeManualSize, overrideImageWidth, setPrintTechnology, setUvPrintType, addToCart, removeFromCart, clearCart } from '../controller/appController.js';
 import { processImage } from '../modules/imageProcessor.js';
 import { parseLength } from '../modules/formatParser.js';
-import { getPrintableWidthFor } from '../config/formats.js';
-
-function escapeHtml(str) {
-  return String(str ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
 
 export function init(container) {
   // Render initial structure
@@ -97,9 +87,8 @@ export function init(container) {
       const state = getState();
       const currentImages = [...state.images];
       
-      const maxWidth = getPrintableWidthFor(state.printTechnology);
       for (const file of files) {
-        const processed = await processImage(file, maxWidth);
+        const processed = await processImage(file);
         currentImages.push(processed);
       }
       
@@ -363,8 +352,6 @@ function handleClick(e) {
     case 'remove-image': {
       const id = btn.dataset.id;
       const state = getState();
-      const removed = state.images.find(img => img.id === id);
-      if (removed && removed.dataUrl) URL.revokeObjectURL(removed.dataUrl);
       const newImages = state.images.filter(img => img.id !== id);
       onImagesUpdated(newImages);
       break;
@@ -695,12 +682,12 @@ function updateDOM(container, state) {
     if (state.images && state.images.length > 0) {
       previewContainer.innerHTML = state.images.map(img => `
         <div style="display: flex; align-items: center; gap: 12px; padding: 8px; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--bg-card);">
-          <img src="${escapeHtml(img.dataUrl || '')}" alt="" style="width: 40px; height: 40px; object-fit: contain; border-radius: 4px; background: #000;" />
+          <img src="${img.dataUrl}" style="width: 40px; height: 40px; object-fit: contain; border-radius: 4px; background: #000;" />
           <div style="flex: 1; min-width: 0;">
-            <div style="font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(img.name)}">${escapeHtml(img.name)}</div>
+            <div style="font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${img.name}</div>
             <div style="font-size: 11px; color: ${img.isValid && !img.hasWarning ? 'var(--text-muted)' : 'var(--accent-pink)'};">
               ${img.isValid && !img.hasWarning && !img.isOverridden ? `Detected: ${img.width}" × ${img.length}"` : ''}
-              ${!img.isValid ? `Invalid: ${escapeHtml(img.error)}` : ''}
+              ${!img.isValid ? `Invalid: ${img.error}` : ''}
             </div>
             
             ${img.dpiConfidence ? `
@@ -711,7 +698,7 @@ function updateDOM(container, state) {
             
             ${img.hasWarning ? `
               <div style="margin-top: 4px; padding: 6px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 4px; font-size: 11px; color: #b45309;">
-                ${escapeHtml(img.warning)}
+                ${img.warning}
                 <div style="margin-top: 6px; display: flex; align-items: center; gap: 8px;">
                   <label style="font-weight: 500;">Actual Width:</label>
                   <input type="number" step="0.1" data-action="override-width" data-id="${img.id}" style="width: 70px; padding: 4px; border: 1px solid #fcd34d; border-radius: 4px;" placeholder="inches" />

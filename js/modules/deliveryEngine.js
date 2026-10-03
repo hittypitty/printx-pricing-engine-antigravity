@@ -4,7 +4,6 @@
  */
 
 import { WEIGHT_CONFIG } from '../config/weightConfig.js';
-import { WEIGHT_PER_METER_KG } from '../config/weights.js';
 
 /**
  * Calculate A3 equivalent sheet count.
@@ -22,7 +21,7 @@ export function calculateUVDTFA3EquivalentSheets(format, quantity, length) {
 }
 
 /**
- * Historical shipping weights (kg) for UV DTF by A3-equivalent sheet count.
+ * Get shipping weight for UV DTF based on A3 equivalent sheets.
  */
 export const UV_DTF_HISTORICAL_WEIGHTS = {
   1: 0.15,
@@ -57,44 +56,77 @@ export const UV_DTF_HISTORICAL_WEIGHTS = {
   100: 4.45
 };
 
-/**
- * Interpolate UV DTF shipping weight from historical data (rounded to nearest 50g).
- * @param {number} qty - A3 equivalent sheet count
- * @returns {number} kg
- */
 export function calculateInterpolatedUVDTFWeight(qty) {
-  if (qty <= 0) return 0;
-  if (UV_DTF_HISTORICAL_WEIGHTS[qty] !== undefined) return UV_DTF_HISTORICAL_WEIGHTS[qty];
+  let matchedWeight = null;
+  let lowerPoint = null;
+  let higherPoint = null;
+  let interpolatedWeight = null;
+  let finalWeight = 0.0;
 
-  const keys = Object.keys(UV_DTF_HISTORICAL_WEIGHTS).map(Number).sort((a, b) => a - b);
-  let interpolated;
-
-  if (qty < keys[0]) {
-    // Between 0 and the smallest key
-    interpolated = (qty / keys[0]) * UV_DTF_HISTORICAL_WEIGHTS[keys[0]];
-  } else if (qty > keys[keys.length - 1]) {
-    // Extrapolate using the slope of the last two points
-    const x1 = keys[keys.length - 2];
-    const x2 = keys[keys.length - 1];
-    const y1 = UV_DTF_HISTORICAL_WEIGHTS[x1];
-    const y2 = UV_DTF_HISTORICAL_WEIGHTS[x2];
-    interpolated = y2 + (qty - x2) * ((y2 - y1) / (x2 - x1));
+  if (qty <= 0) {
+    finalWeight = 0.0;
+  } else if (UV_DTF_HISTORICAL_WEIGHTS[qty] !== undefined) {
+    matchedWeight = UV_DTF_HISTORICAL_WEIGHTS[qty];
+    finalWeight = matchedWeight;
   } else {
-    let x1 = keys[0];
-    let x2 = keys[0];
-    for (let i = 0; i < keys.length - 1; i++) {
-      if (qty >= keys[i] && qty <= keys[i + 1]) {
-        x1 = keys[i];
-        x2 = keys[i + 1];
-        break;
-      }
+    const keys = Object.keys(UV_DTF_HISTORICAL_WEIGHTS).map(Number).sort((a, b) => a - b);
+
+    // Less than the smallest key (1)
+    if (qty < keys[0]) {
+      const x2 = keys[0];
+      const y2 = UV_DTF_HISTORICAL_WEIGHTS[x2];
+      lowerPoint = { qty: 0, weight: 0.0 };
+      higherPoint = { qty: x2, weight: y2 };
+      interpolatedWeight = (qty / x2) * y2;
+      finalWeight = Math.round(interpolatedWeight * 20) / 20;
     }
-    const y1 = UV_DTF_HISTORICAL_WEIGHTS[x1];
-    const y2 = UV_DTF_HISTORICAL_WEIGHTS[x2];
-    interpolated = y1 + ((qty - x1) / (x2 - x1)) * (y2 - y1);
+    // Greater than the largest key (100)
+    else if (qty > keys[keys.length - 1]) {
+      const x1 = keys[keys.length - 2]; // 80
+      const y1 = UV_DTF_HISTORICAL_WEIGHTS[x1]; // 3.35
+      const x2 = keys[keys.length - 1]; // 100
+      const y2 = UV_DTF_HISTORICAL_WEIGHTS[x2]; // 4.45
+      const slope = (y2 - y1) / (x2 - x1);
+      lowerPoint = { qty: x1, weight: y1 };
+      higherPoint = { qty: x2, weight: y2 };
+      interpolatedWeight = y2 + (qty - x2) * slope;
+      finalWeight = Math.round(interpolatedWeight * 20) / 20;
+    }
+    // Between two keys
+    else {
+      let x1 = keys[0];
+      let y1 = UV_DTF_HISTORICAL_WEIGHTS[x1];
+      let x2 = keys[0];
+      let y2 = UV_DTF_HISTORICAL_WEIGHTS[x2];
+
+      for (let i = 0; i < keys.length - 1; i++) {
+        if (qty >= keys[i] && qty <= keys[i + 1]) {
+          x1 = keys[i];
+          y1 = UV_DTF_HISTORICAL_WEIGHTS[x1];
+          x2 = keys[i + 1];
+          y2 = UV_DTF_HISTORICAL_WEIGHTS[x2];
+          break;
+        }
+      }
+
+      lowerPoint = { qty: x1, weight: y1 };
+      higherPoint = { qty: x2, weight: y2 };
+      interpolatedWeight = y1 + ((qty - x1) / (x2 - x1)) * (y2 - y1);
+      finalWeight = Math.round(interpolatedWeight * 20) / 20;
+    }
   }
 
-  return Math.round(interpolated * 20) / 20;
+  // Temporary console debug as requested
+  console.log({
+    qty,
+    matchedWeight,
+    lowerPoint,
+    higherPoint,
+    interpolatedWeight,
+    finalWeight
+  });
+
+  return finalWeight;
 }
 
 /**
@@ -106,38 +138,58 @@ export function getUVDTFWeight(format, quantity, length) {
   return calculateInterpolatedUVDTFWeight(qty);
 }
 
+// SAFE DEPRECATED IMPLEMENTATION (kept for easy revert if needed)
+export function getUVDTFWeightOld(format, quantity, length, config) {
+  const a3Equivalent = calculateUVDTFA3EquivalentSheets(format, quantity, length);
+  const qty = Math.ceil(a3Equivalent);
+  
+  if (!config) {
+    throw new Error('getUVDTFWeightOld: config is required');
+  }
+  const { weights } = config;
+  const slabs = weights.UV_DTF_SHIPPING_SLABS || [];
+  const matched = slabs.find(s => qty >= s.min && qty <= s.max);
+  if (matched) {
+    return matched.weight;
+  }
+  if (slabs.length > 0) {
+    return slabs[slabs.length - 1].weight;
+  }
+  return 0.2; // default fallback
+}
+
 /**
  * Get shipping weight for Fabric DTF using WEIGHT_CONFIG.
- *
- * Partial meters round UP to the next row (1.9m uses the 2m row, not 1m), so the
- * weight is never under-estimated. Beyond the last row, weight is extrapolated
- * at WEIGHT_PER_METER_KG per extra meter.
  */
 export function getFabricWeight(totalMeters) {
-  const meters = Math.max(0, Number(totalMeters) || 0);
-  const last = WEIGHT_CONFIG[WEIGHT_CONFIG.length - 1];
-
-  let actualWeight;
-  let dims = null;
-
-  if (meters > last.meter) {
-    actualWeight = last.actualWeight + (meters - last.meter) * WEIGHT_PER_METER_KG;
-  } else {
-    const row = WEIGHT_CONFIG.find(r => r.meter >= meters) || last;
-    actualWeight = row.actualWeight;
-    if (row.overrideWeight !== undefined) return Math.max(row.overrideWeight, 0.01);
-    if (row.l && row.b && row.h) dims = row;
+  const combinedMeters = totalMeters;
+  let matchedSlab = WEIGHT_CONFIG[0];
+  for (let i = 0; i < WEIGHT_CONFIG.length; i++) {
+    if (WEIGHT_CONFIG[i].meter <= combinedMeters) {
+      matchedSlab = WEIGHT_CONFIG[i];
+    } else {
+      break;
+    }
   }
 
-  const volumetricWeight = dims ? (dims.l * dims.b * dims.h) / 5000 : 0;
-  const finalWeight = Math.max(actualWeight, volumetricWeight);
-  return Math.max(Math.round(finalWeight * 100) / 100, 0.01);
+  const actualWeight = matchedSlab.actualWeight;
+  let volumetricWeight = 0;
+  if (matchedSlab.l && matchedSlab.b && matchedSlab.h) {
+    volumetricWeight = (matchedSlab.l * matchedSlab.b * matchedSlab.h) / 5000;
+  }
+
+  let finalWeight = 0;
+  if (matchedSlab.overrideWeight !== undefined) {
+    finalWeight = matchedSlab.overrideWeight;
+  } else {
+    finalWeight = Math.max(actualWeight, volumetricWeight);
+  }
+
+  return Math.max(finalWeight, 0.01);
 }
 
 /**
  * Calculate shipping cost for a single courier partner.
- *
- * Slab-rate couriers: first slab = `base`, every further started `slab` kg adds `add`.
  *
  * @param {string} partnerKey - e.g., 'bluedart'
  * @param {number} totalMeters
@@ -154,9 +206,12 @@ export function calculateShipping(partnerKey, totalMeters, quantity, weightOverr
   const partner = couriers[partnerKey];
   if (!partner) return null;
 
-  const finalWeight = (weightOverride !== undefined && weightOverride !== null)
-    ? weightOverride
-    : getFabricWeight(totalMeters);
+  let finalWeight = 0;
+  if (weightOverride !== undefined && weightOverride !== null) {
+    finalWeight = weightOverride;
+  } else {
+    finalWeight = getFabricWeight(totalMeters);
+  }
 
   let shippingCost = 0;
   let breakdown = '';
@@ -177,6 +232,14 @@ export function calculateShipping(partnerKey, totalMeters, quantity, weightOverr
   } else {
     return null;
   }
+
+  // Debug logging temporarily
+  console.log({
+    qty: quantity,
+    estimatedWeight: finalWeight,
+    courierRate: partner.base !== undefined ? partner.base : shippingCost,
+    shippingCost
+  });
 
   return {
     partnerKey,
@@ -213,7 +276,7 @@ export function calculateAllShipping(totalMeters, quantity, filter, weightOverri
       results.sort((a, b) => a.shippingCost - b.shippingCost);
       break;
     case 'fastest':
-      results.sort((a, b) => parseInt(a.eta) - parseInt(b.eta) || a.shippingCost - b.shippingCost);
+      results.sort((a, b) => parseInt(a.eta) - parseInt(b.eta));
       break;
     default:
       break;
@@ -248,28 +311,6 @@ export function getBestCourier(results) {
 }
 
 /**
- * Map a free-text courier name (e.g. from the ERP: "Bluedart (Fastest)", "DTDC Express")
- * to a courier key in config. Returns null if it can't be matched.
- */
-export function resolveCourierKey(name, config) {
-  if (!name) return null;
-  const n = String(name).toLowerCase();
-  const couriers = (config && config.couriers) || {};
-  const pick = key => (couriers[key] ? key : null);
-
-  if (n.includes('blue')) return pick('bluedart');
-  if (n.includes('dtdc')) return n.includes('express') ? pick('dtdc_express') : pick('dtdc_surface');
-  if (n.includes('tirupati')) return pick('tirupati');
-  if (n.includes('speed')) return pick('speed_post');
-  if (n.includes('india post') || n.includes('indiapost')) return pick('india_post');
-
-  // Exact key or exact display name
-  if (couriers[n]) return n;
-  const byName = Object.keys(couriers).find(k => couriers[k].name.toLowerCase() === n);
-  return byName || null;
-}
-
-/**
  * Get packaging cost based on delivery method.
  * @param {string} deliveryMethod - 'pickup' | 'courier' | 'transport'
  * @param {object} config - Configuration object
@@ -281,12 +322,4 @@ export function getPackagingCost(deliveryMethod, config) {
   }
   const { pricing } = config;
   return deliveryMethod === 'courier' ? pricing.PACKAGING_COST : 0;
-}
-
-/**
- * Get local transport cost.
- */
-export function getTransportCost(config) {
-  const cost = config && config.pricing ? config.pricing.TRANSPORT_COST : undefined;
-  return cost !== undefined ? cost : 50;
 }
