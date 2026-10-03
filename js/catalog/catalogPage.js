@@ -22,6 +22,12 @@ import { isDbConfigured, fetchProducts } from './db.js';
 
 const WHATSAPP_NUMBER = getConfig().branding.whatsappNumber || '917869581020';
 
+const WA_ICON = `<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91C21.95 6.45 17.5 2 12.04 2zm5.8 14.03c-.25.69-1.44 1.32-1.98 1.37-.51.05-.98.24-3.3-.69-2.79-1.1-4.56-3.95-4.7-4.13-.14-.18-1.12-1.49-1.12-2.85 0-1.35.71-2.02.96-2.29.25-.28.55-.35.73-.35h.53c.17 0 .4-.06.62.48.25.6.83 2.06.9 2.21.07.15.12.32.02.51-.1.19-.15.31-.29.48-.15.17-.31.38-.44.51-.15.15-.3.31-.13.6.17.29.76 1.25 1.63 2.03 1.12 1 2.07 1.31 2.36 1.46.29.15.46.12.63-.07.17-.19.73-.85.92-1.15.19-.29.39-.24.65-.15.27.1 1.7.8 1.99.95.29.15.48.22.55.34.07.13.07.71-.18 1.4z"/></svg>`;
+
+function waLink(message) {
+  return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
+}
+
 const state = {
   products: [],
   query: '',
@@ -86,6 +92,10 @@ function buildShell() {
     </section>
 
     <section class="catalog-grid" id="catalog-grid"></section>
+
+    <a class="wa-fab" href="${waLink('Hi Bazarville, I have an enquiry about your products. Please share details.')}" target="_blank" rel="noopener" aria-label="Enquire on WhatsApp">
+      ${WA_ICON}<span>Enquire on WhatsApp</span>
+    </a>
   `;
 }
 
@@ -128,7 +138,13 @@ function renderGrid(root) {
       <div class="catalog-empty card">
         <div class="card-body">
           <div class="catalog-empty-title">No products found</div>
-          <div class="text-muted">Try a different search term or category.</div>
+          <div class="text-muted">Try a different search term or category — or ask us, we may still have it.</div>
+          <a class="btn btn-whatsapp catalog-empty-wa" target="_blank" rel="noopener"
+             href="${waLink(state.query.trim()
+               ? `Hi Bazarville, I'm looking for "${state.query.trim()}". Do you have it? Please share price and availability.`
+               : 'Hi Bazarville, I am looking for a product that is not in your catalog. Please help.')}">
+            ${WA_ICON} Ask on WhatsApp
+          </a>
         </div>
       </div>
     `;
@@ -200,15 +216,15 @@ function buildCard(product) {
         <div class="product-qty">
           <label class="field-label" for="qty-${escapeHtml(product.id)}">Quantity</label>
           <div class="number-input-group">
-            <button type="button" class="btn-spin" data-action="dec" ${isOut ? 'disabled' : ''} aria-label="Decrease quantity">-</button>
-            <input type="number" class="input-field" id="qty-${escapeHtml(product.id)}" min="1" ${isOut ? '' : `max="${product.stock}"`} value="${qty}" data-action="qty" ${isOut ? 'disabled' : ''} />
-            <button type="button" class="btn-spin" data-action="inc" ${isOut ? 'disabled' : ''} aria-label="Increase quantity">+</button>
+            <button type="button" class="btn-spin" data-action="dec" aria-label="Decrease quantity">-</button>
+            <input type="number" class="input-field" id="qty-${escapeHtml(product.id)}" min="1" value="${qty}" data-action="qty" />
+            <button type="button" class="btn-spin" data-action="inc" aria-label="Increase quantity">+</button>
           </div>
           <div class="product-estimate" data-role="estimate"></div>
         </div>
 
-        <a class="btn btn-whatsapp product-enquire ${isOut ? 'is-disabled' : ''}" data-role="enquire" target="_blank" rel="noopener" ${isOut ? 'aria-disabled="true" tabindex="-1"' : ''}>
-          ${isOut ? 'Out of Stock' : 'Enquire on WhatsApp'}
+        <a class="btn btn-whatsapp product-enquire ${isOut ? 'is-out' : ''}" data-role="enquire" target="_blank" rel="noopener">
+          ${WA_ICON}<span>${isOut ? 'Ask availability on WhatsApp' : 'Enquire on WhatsApp'}</span>
         </a>
       </div>
     </article>
@@ -234,8 +250,11 @@ function updateCardPricing(card) {
   const enquire = card.querySelector('[data-role="enquire"]');
 
   if (stock.key === 'out') {
-    estimate.innerHTML = '';
-    enquire.removeAttribute('href');
+    estimate.innerHTML = '<span class="estimate-warning">Currently out of stock — ask us for the next availability</span>';
+    enquire.href = waLink(
+      `Hi Bazarville, I'm interested in *${product.title}* (Qty: ${qty} ${product.unit}).\n` +
+      'It shows Out of Stock on your catalog — when will it be available?'
+    );
     return;
   }
 
@@ -252,10 +271,12 @@ function updateCardPricing(card) {
       : '';
   }
 
-  const msg = tier
-    ? `Hi, I'm interested in *${product.title}*.\nQuantity: ${qty} ${product.unit}\nPrice: ${formatINR(tier.price)}/${product.unit} (Total ${formatINR(tier.price * qty)})\nPlease confirm availability.`
-    : `Hi, I'm interested in *${product.title}* (Qty: ${qty} ${product.unit}). Please share the price.`;
-  enquire.href = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`;
+  const lines = [`Hi Bazarville, I'm interested in *${product.title}*.`, `Quantity: ${qty} ${product.unit}`];
+  if (tier) lines.push(`Price: ${formatINR(tier.price)}/${product.unit} (Total ${formatINR(tier.price * qty)})`);
+  else lines.push('Please share the price.');
+  if (overStock) lines.push(`(Catalog shows only ${product.stock} ${product.unit} in stock)`);
+  lines.push('Please confirm availability.');
+  enquire.href = waLink(lines.join('\n'));
 }
 
 function refreshAllCards(root) {
@@ -320,10 +341,6 @@ function bindEvents(root) {
       return;
     }
 
-    const enquire = e.target.closest('[data-role="enquire"]');
-    if (enquire && enquire.classList.contains('is-disabled')) {
-      e.preventDefault();
-    }
   });
 
   root.addEventListener('input', e => {

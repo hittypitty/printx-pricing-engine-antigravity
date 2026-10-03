@@ -351,12 +351,60 @@
   margin-top: 4px;
 }
 
-.product-enquire.is-disabled {
-  background: var(--bg-input);
-  color: var(--text-muted);
+.product-enquire.is-out {
+  background: #fff;
+  color: #128c7e;
+  border: 1px solid #25d366;
   box-shadow: none;
-  cursor: not-allowed;
-  pointer-events: none;
+}
+
+.product-enquire.is-out:hover {
+  background: #f0fdf4;
+  color: #128c7e;
+}
+
+.product-enquire svg,
+.wa-fab svg,
+.catalog-empty-wa svg {
+  flex-shrink: 0;
+}
+
+.catalog-empty-wa {
+  margin-top: 14px;
+}
+
+/* Floating WhatsApp enquiry button */
+.wa-fab {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 50;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(135deg, #25D366, #1da851);
+  color: #fff;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  box-shadow: 0 8px 24px rgba(37, 211, 102, 0.35);
+  transition: transform var(--transition-base), box-shadow var(--transition-base);
+}
+
+.wa-fab:hover {
+  color: #fff;
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(37, 211, 102, 0.45);
+}
+
+.wa-fab svg {
+  width: 20px;
+  height: 20px;
+}
+
+.catalog-grid {
+  padding-bottom: 72px; /* room for the floating button */
 }
 
 /* ========================================
@@ -868,6 +916,14 @@
   .catalog-grid {
     grid-template-columns: 1fr;
     gap: 16px;
+  }
+  .wa-fab {
+    right: 16px;
+    bottom: 16px;
+    padding: 14px;
+  }
+  .wa-fab span {
+    display: none;
   }
   .product-body {
     padding: 16px;
