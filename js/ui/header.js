@@ -9,13 +9,13 @@ import { getConfig, subscribeConfig } from '../state/configStore.js';
 const NAV_ITEMS = [
   { page: 'pricing', label: 'Pricing Engine', href: 'index.html' },
   { page: 'catalog', label: 'BV Catalog', href: 'catalog.html' },
-  { page: 'manage', label: 'Manage Products', href: 'catalog-admin.html' },
+  { page: 'manage', label: 'Inventory', href: 'catalog-admin.html' },
 ];
 
 const SUBTITLES = {
   pricing: 'PRICING ENGINE',
   catalog: 'BV CATALOG',
-  manage: 'MANAGE PRODUCTS',
+  manage: 'INVENTORY',
 };
 
 export function init(container) {

@@ -18,6 +18,7 @@ import {
   formatINR,
   escapeHtml,
 } from './productStore.js';
+import { isDbConfigured, fetchProducts } from './db.js';
 
 const WHATSAPP_NUMBER = getConfig().branding.whatsappNumber || '917869581020';
 
@@ -31,11 +32,27 @@ const state = {
 
 // ---------- Init ----------
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   initHeader(document.getElementById('app-header'));
-  state.products = loadProducts();
-
   const root = document.getElementById('catalog-root');
+
+  if (isDbConfigured()) {
+    root.innerHTML = '<div class="card"><div class="card-body text-muted">Loading products…</div></div>';
+    try {
+      // Only products marked "Show on catalog"
+      state.products = (await fetchProducts()).filter(p => p.isActive);
+    } catch (err) {
+      root.innerHTML = `
+        <div class="card catalog-empty"><div class="card-body">
+          <div class="catalog-empty-title">Could not load products</div>
+          <div class="text-muted">${escapeHtml(err.message)}</div>
+        </div></div>`;
+      return;
+    }
+  } else {
+    state.products = loadProducts();
+  }
+
   root.innerHTML = buildShell();
   renderCategories(root);
   renderGrid(root);

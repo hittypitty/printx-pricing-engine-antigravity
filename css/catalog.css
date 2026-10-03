@@ -611,6 +611,230 @@
   background: var(--danger);
 }
 
+/* ========================================
+   Inventory — login, user bar, stock panel
+   ======================================== */
+
+.auth-card {
+  max-width: 420px;
+  margin: 24px auto;
+}
+
+.auth-form .field-group {
+  margin-bottom: var(--space-lg);
+}
+
+.auth-submit {
+  width: 100%;
+  height: 48px;
+  margin-top: 8px;
+}
+
+.auth-note {
+  margin-top: 14px;
+  text-align: center;
+}
+
+.admin-userbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 14px 20px;
+  margin-bottom: var(--space-xl);
+}
+
+.admin-user-name {
+  font-weight: var(--fw-semibold);
+  margin-right: 8px;
+}
+
+.admin-user-email {
+  margin-left: 8px;
+}
+
+.admin-role-pill {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: var(--fw-semibold);
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+  background: #faf5ff;
+  color: #7e22ce;
+}
+
+.admin-userbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.admin-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  color: var(--success);
+  margin-right: 4px;
+}
+
+.admin-live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--success);
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.15);
+}
+
+.admin-local-banner {
+  margin-bottom: var(--space-xl);
+  padding: 12px 16px;
+  border: 1px solid #fde68a;
+  background: #fffbeb;
+  color: #92400e;
+  border-radius: var(--radius-md);
+  font-size: var(--fs-sm);
+}
+
+.admin-local-banner code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  background: rgba(146, 64, 14, 0.08);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+.admin-hidden-pill {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: var(--fw-semibold);
+  padding: 1px 7px;
+  margin-left: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-input);
+  color: var(--text-muted);
+  vertical-align: middle;
+}
+
+.stock-panel {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 16px;
+  align-items: start;
+  padding: 16px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: #fafbfc;
+}
+
+.stock-current-value {
+  font-size: var(--fs-2xl);
+  font-weight: var(--fw-bold);
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.stock-current-value span {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  color: var(--text-muted);
+}
+
+.stock-current-hint {
+  margin-top: 8px;
+}
+
+.stock-adjust {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  gap: 8px;
+}
+
+.stock-adjust .input-field {
+  height: 42px;
+  padding: 8px 12px;
+  background: #fff;
+}
+
+.stock-adjust-buttons {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 8px;
+}
+
+.stock-adjust-buttons .btn {
+  flex: 1;
+  border-radius: var(--radius-md);
+}
+
+.stock-btn-add {
+  background: #f0fdf4;
+  color: var(--success);
+}
+
+.stock-btn-add:hover {
+  background: #dcfce7;
+  color: var(--success);
+}
+
+.stock-btn-remove {
+  background: #fef2f2;
+  color: var(--danger);
+}
+
+.stock-btn-remove:hover {
+  background: #fee2e2;
+  color: var(--danger);
+}
+
+.stock-log {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.stock-log th {
+  text-align: left;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  color: var(--text-muted);
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.stock-log td {
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-secondary);
+}
+
+.log-up { color: var(--success) !important; font-weight: var(--fw-semibold); }
+.log-down { color: var(--danger) !important; font-weight: var(--fw-semibold); }
+
+.btn:disabled,
+.btn-add-conversion:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+  .stock-panel {
+    grid-template-columns: 1fr;
+  }
+  .stock-log th:nth-child(5),
+  .stock-log td:nth-child(5) {
+    display: none;
+  }
+  .admin-user-email {
+    display: block;
+    margin: 4px 0 0;
+  }
+}
+
 /* ---------- Responsive ---------- */
 
 @media (max-width: 900px) {
