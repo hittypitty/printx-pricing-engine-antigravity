@@ -4,21 +4,29 @@
  */
 
 /**
- * Parse a length expression string for Meters format.
+ * Parse a length expression string (inches by default).
+ *
+ * Supported: plain inches ("20"), meters ("1m", "1.5 m", "2 meters"),
+ * arithmetic with + - * and x ("20+19", "39x3", "1m+10").
+ *
  * @param {string} rawLength
- * @returns {number} lengthInInches (ceiled integer), or 0 if invalid
+ * @returns {number} length in inches (2 decimals), or 0 if invalid
  */
 export function parseLength(rawLength) {
-  if (!rawLength || typeof rawLength !== 'string') return 0;
+  if (rawLength === null || rawLength === undefined) return 0;
+  let expr = String(rawLength).trim().toLowerCase();
+  if (!expr) return 0;
 
-  let expr = rawLength.trim().toLowerCase();
+  // Number followed by a meter unit → (number*39). Units must directly follow a number.
+  expr = expr.replace(/(\d*\.?\d+)\s*(meters?|mtrs?|m)(?![a-z])/g, '($1*39)');
   expr = expr.replace(/x/g, '*');
-  expr = expr.replace(/meters/gi, '*39');
-  expr = expr.replace(/m/gi, '*39');
+
+  // After conversion only digits, operators, dots, brackets and spaces may remain
+  if (!/^[0-9+\-*.()\s]+$/.test(expr)) return 0;
 
   try {
     const result = Function('"use strict"; return (' + expr + ')')();
-    if (typeof result !== 'number' || isNaN(result) || result <= 0) return 0;
+    if (typeof result !== 'number' || !Number.isFinite(result) || result <= 0) return 0;
     return Number(result.toFixed(2));
   } catch (e) {
     return 0;
@@ -58,4 +66,3 @@ export function resolveDimensions(format, quantity, rawLength, config) {
     isSheetFormat,
   };
 }
-

@@ -15,6 +15,7 @@ export const METER_SLABS = [
 ];
 
 export const PACKAGING_COST = 20; // ₹, applied only for courier delivery
+export const TRANSPORT_COST = 50; // ₹, local transport delivery
 
 export const UV_DTF_PRICING = {
   A4_NORMAL: 177,

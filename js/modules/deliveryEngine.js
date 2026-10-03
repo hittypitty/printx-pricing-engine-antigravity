@@ -116,16 +116,6 @@ export function calculateInterpolatedUVDTFWeight(qty) {
     }
   }
 
-  // Temporary console debug as requested
-  console.log({
-    qty,
-    matchedWeight,
-    lowerPoint,
-    higherPoint,
-    interpolatedWeight,
-    finalWeight
-  });
-
   return finalWeight;
 }
 
@@ -136,26 +126,6 @@ export function getUVDTFWeight(format, quantity, length) {
   const a3Equivalent = calculateUVDTFA3EquivalentSheets(format, quantity, length);
   const qty = Math.ceil(a3Equivalent);
   return calculateInterpolatedUVDTFWeight(qty);
-}
-
-// SAFE DEPRECATED IMPLEMENTATION (kept for easy revert if needed)
-export function getUVDTFWeightOld(format, quantity, length, config) {
-  const a3Equivalent = calculateUVDTFA3EquivalentSheets(format, quantity, length);
-  const qty = Math.ceil(a3Equivalent);
-  
-  if (!config) {
-    throw new Error('getUVDTFWeightOld: config is required');
-  }
-  const { weights } = config;
-  const slabs = weights.UV_DTF_SHIPPING_SLABS || [];
-  const matched = slabs.find(s => qty >= s.min && qty <= s.max);
-  if (matched) {
-    return matched.weight;
-  }
-  if (slabs.length > 0) {
-    return slabs[slabs.length - 1].weight;
-  }
-  return 0.2; // default fallback
 }
 
 /**
@@ -232,14 +202,6 @@ export function calculateShipping(partnerKey, totalMeters, quantity, weightOverr
   } else {
     return null;
   }
-
-  // Debug logging temporarily
-  console.log({
-    qty: quantity,
-    estimatedWeight: finalWeight,
-    courierRate: partner.base !== undefined ? partner.base : shippingCost,
-    shippingCost
-  });
 
   return {
     partnerKey,
@@ -322,4 +284,12 @@ export function getPackagingCost(deliveryMethod, config) {
   }
   const { pricing } = config;
   return deliveryMethod === 'courier' ? pricing.PACKAGING_COST : 0;
+}
+
+/**
+ * Get local transport cost (from config, default ₹50).
+ */
+export function getTransportCost(config) {
+  const cost = config && config.pricing ? config.pricing.TRANSPORT_COST : undefined;
+  return cost !== undefined ? cost : 50;
 }
