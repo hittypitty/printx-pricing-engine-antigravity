@@ -137,8 +137,7 @@ export function getFabricWeight(totalMeters) {
 /**
  * Calculate shipping cost for a single courier partner.
  *
- * Slab-rate couriers: `base` covers the first `baseWeight` kg; every started
- * `slab` kg above that adds `add`.
+ * Slab-rate couriers: first slab = `base`, every further started `slab` kg adds `add`.
  *
  * @param {string} partnerKey - e.g., 'bluedart'
  * @param {number} totalMeters
@@ -172,14 +171,9 @@ export function calculateShipping(partnerKey, totalMeters, quantity, weightOverr
     shippingCost = matchedSlab.rate;
     breakdown = `${partner.name} (Up to ${matchedSlab.maxWeight >= 1 ? matchedSlab.maxWeight + ' kg' : (matchedSlab.maxWeight * 1000) + ' g'})`;
   } else if (partner.slab !== undefined && partner.base !== undefined) {
-    const baseWeight = partner.baseWeight !== undefined ? partner.baseWeight : partner.slab;
-    const extraWeight = Math.max(0, finalWeight - baseWeight);
-    // Small epsilon so floating-point noise (e.g. 1.5000000001) doesn't add a slab
-    const extraSlabs = extraWeight > 0.00001 ? Math.ceil(extraWeight / partner.slab - 0.00001) : 0;
-    shippingCost = partner.base + extraSlabs * (partner.add || 0);
-    breakdown = extraSlabs > 0
-      ? `${partner.name} (${baseWeight} kg base + ${extraSlabs} × ${partner.slab} kg)`
-      : `${partner.name} (up to ${baseWeight} kg)`;
+    const slabCount = Math.ceil(finalWeight / partner.slab);
+    shippingCost = partner.base + (Math.max(slabCount - 1, 0) * (partner.add || 0));
+    breakdown = `${partner.name} (${slabCount} slabs)`;
   } else {
     return null;
   }

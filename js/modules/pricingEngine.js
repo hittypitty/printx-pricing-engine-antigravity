@@ -25,36 +25,32 @@ export function findSlab(slabs, value) {
 }
 
 /**
- * Fabric DTF running-length price (shared by the UI engine and the ERP entry point).
+ * Fabric DTF running-length price (shared by the UI engine).
  *
  *   >= 1 meter → meters × slab rate
- *   <  1 meter → sq-inch micro pricing, CAPPED at the price of 1 full meter
- *               (so a shorter print never costs more than a full meter)
+ *   <  1 meter → sq-inch micro pricing (rollWidth × length × MICRO_RATE_SQ_INCH)
  *
  * @param {number} totalMeters
  * @param {object} config
- * @returns {{ printCost:number, rate:number, isMicro:boolean, isCapped:boolean, sqInches:number }}
+ * @returns {{ printCost:number, rate:number, isMicro:boolean, sqInches:number }}
  */
 export function calculateFabricRunningCost(totalMeters, config) {
   const { pricing, formats } = config;
   const meters = Math.max(0, Number(totalMeters) || 0);
   const rollWidth = (formats && formats.ROLL_WIDTH) || 24;
-  const sqInches = rollWidth * meters * 39;
+  // Round away floating-point noise (24 × (30/39) × 39 = 720.0000001 → 720)
+  const sqInches = Number((rollWidth * meters * 39).toFixed(4));
 
   if (meters <= 0) {
-    return { printCost: 0, rate: 0, isMicro: false, isCapped: false, sqInches: 0 };
+    return { printCost: 0, rate: 0, isMicro: false, sqInches: 0 };
   }
 
   if (meters < 1) {
     const microRate = pricing.MICRO_RATE_SQ_INCH || 0.5;
-    const microCost = Math.ceil(sqInches * microRate);
-    const oneMeterCost = Math.ceil(findSlab(pricing.METER_SLABS, 1).rate * 1);
-    const isCapped = oneMeterCost < microCost;
     return {
-      printCost: isCapped ? oneMeterCost : microCost,
-      rate: isCapped ? oneMeterCost : microRate,
+      printCost: Math.ceil(sqInches * microRate),
+      rate: microRate,
       isMicro: true,
-      isCapped,
       sqInches,
     };
   }
@@ -64,7 +60,6 @@ export function calculateFabricRunningCost(totalMeters, config) {
     printCost: Math.ceil(meters * slab.rate),
     rate: slab.rate,
     isMicro: false,
-    isCapped: false,
     sqInches,
   };
 }
@@ -73,7 +68,7 @@ export function calculateFabricRunningCost(totalMeters, config) {
  * Calculate print cost using V1 rules exactly.
  * Decision tree:
  *   1. Sheet format (A4/A3/A2) → fixed price × quantity
- *   2. Meters + totalMeters < 1 → micro-pricing (sqInches × rate), capped at 1 meter price
+ *   2. Meters + totalMeters < 1 → micro-pricing (sqInches × rate)
  *   3. Meters + totalMeters >= 1 → slab pricing (meters × slab rate)
  *
  * @param {{
@@ -181,19 +176,10 @@ export function calculatePrintCost(dims, config) {
     };
   }
 
-  // 2 + 3. Running length (micro < 1m, capped; slab ≥ 1m)
+  // 2 + 3. Running length (micro < 1m; slab ≥ 1m)
   const run = calculateFabricRunningCost(totalMeters, config);
 
   if (run.isMicro) {
-    if (run.isCapped) {
-      return {
-        printCost: run.printCost,
-        effectiveRate: effectiveRateOf(run.printCost),
-        rateApplied: run.rate,
-        methodLabel: 'Micro-Pricing (capped at 1m)',
-        breakdown: `${totalMeters.toFixed(2)} m → charged as 1 meter @ ₹${run.rate}`,
-      };
-    }
     return {
       printCost: run.printCost,
       effectiveRate: Number(run.rate).toFixed(2),

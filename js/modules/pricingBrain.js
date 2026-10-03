@@ -5,7 +5,7 @@
 
 import { validateInputs } from './validationEngine.js';
 import { resolveDimensions } from './formatParser.js';
-import { calculatePrintCost, calculateConversionCost, calculateFabricRunningCost, findSlab } from './pricingEngine.js';
+import { calculatePrintCost, calculateConversionCost, findSlab } from './pricingEngine.js';
 import {
   calculateShipping,
   calculateAllShipping,
@@ -287,11 +287,18 @@ export function calculateERPProduct(category, variant, quantity, config) {
     } else if (variant === 'H-DTF-A2') {
       rate = config.formats?.FORMATS?.A2?.fixedPrice || 250;
       total = rate * qty;
-    } else if (variant === 'Custom Inches' || variant === 'Meter') {
-      // Same running-length rules as the pricing engine (micro < 1m capped at 1m price)
-      const meters = variant === 'Custom Inches' ? qty / 39 : qty;
-      total = calculateFabricRunningCost(meters, config).printCost;
-      rate = qty > 0 ? Number((total / qty).toFixed(2)) : 0;
+    } else if (variant === 'Custom Inches') {
+      rate = 12; // 24" width * 0.5 per sq inch
+      total = rate * qty;
+    } else if (variant === 'Meter') {
+      if (qty < 1) {
+        // < 1m → micro pricing (24" width * 39" * 0.5 = 468 per meter)
+        rate = 468;
+      } else {
+        const slab = findSlab(config.pricing?.METER_SLABS || [], qty);
+        rate = slab ? slab.rate : 177;
+      }
+      total = rate * qty;
     }
   }
   // 2. UV DTF

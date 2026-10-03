@@ -52,19 +52,13 @@ function test(name, fn) {
 }
 
 console.log('\nFabric running-meter pricing');
-test('< 1m never costs more than a full meter', () => {
-  for (let len = 1; len < 39; len += 0.5) {
-    const r = quote({ rawLength: String(len) });
-    assert.ok(r.printCost <= 225, `${len}" cost ₹${r.printCost}`);
-  }
-});
 test('small print still uses sq-inch micro pricing (10" = ₹120)', () => {
   assert.equal(quote({ rawLength: '10' }).printCost, 120);
 });
-test('30" capped at 1m price ₹225', () => {
+test('< 1m uses sq-inch micro pricing, no cap (30" = ₹360)', () => {
   const r = quote({ rawLength: '30' });
-  assert.equal(r.printCost, 225);
-  assert.match(r.methodLabel, /capped/);
+  assert.equal(r.printCost, 360);
+  assert.match(r.methodLabel, /Micro/);
 });
 test('1m = ₹225', () => assert.equal(quote({ rawLength: '1m' }).printCost, 225));
 test('no slab gap: 9.992m uses ₹225, not ₹177', () => assert.equal(quote({ rawLength: '389.7' }).rateApplied, 225));
@@ -163,13 +157,11 @@ test('large qty of one design still uses grid packing', () => {
 });
 
 console.log('\nCourier / weight');
-test('DTDC/Bluedart: base rate covers the first 1 kg', () => {
-  assert.equal(calculateShipping('dtdc_surface', 0, 1, 1.0, config).shippingCost, 100);
-  assert.equal(calculateShipping('dtdc_express', 0, 1, 1.0, config).shippingCost, 160);
-  assert.equal(calculateShipping('bluedart', 0, 1, 1.0, config).shippingCost, 130);
-});
-test('DTDC Surface 1.2 kg = base + 1 slab (₹185)', () => {
-  assert.equal(calculateShipping('dtdc_surface', 0, 1, 1.2, config).shippingCost, 185);
+test('DTDC/Bluedart slab rates (original): 1 kg = 2 slabs', () => {
+  assert.equal(calculateShipping('dtdc_surface', 0, 1, 1.0, config).shippingCost, 185);
+  assert.equal(calculateShipping('dtdc_express', 0, 1, 1.0, config).shippingCost, 270);
+  assert.equal(calculateShipping('bluedart', 0, 1, 1.0, config).shippingCost, 260);
+  assert.equal(calculateShipping('dtdc_surface', 0, 1, 0.4, config).shippingCost, 100);
 });
 test('Tirupati unchanged (1 kg ₹60, 1.5 kg ₹120)', () => {
   assert.equal(calculateShipping('tirupati', 0, 1, 1.0, config).shippingCost, 60);
@@ -217,14 +209,15 @@ test('ERP final total includes packaging for courier', () => {
   const r = calculateQuote({ products: [{ category: 'Fabric Heat DTF', variant: 'Meter', quantity: 5 }], deliveryType: 'Courier', preferredCourier: 'Bluedart' }, config);
   assert.equal(r.finalTotal, Math.ceil(r.printCost + r.shippingCost + r.packagingCost));
 });
-test('ERP 0.5m and 30 custom inches never cost more than 1 meter', () => {
-  const m = calculateQuote({ products: [{ category: 'Fabric Heat DTF', variant: 'Meter', quantity: 0.8 }] }, config);
-  const c = calculateQuote({ products: [{ category: 'Fabric Heat DTF', variant: 'Custom Inches', quantity: 30 }] }, config);
-  assert.ok(m.printCost <= 225 && c.printCost <= 225);
-});
-test('ERP 100 custom inches priced as running meters (not ₹1200)', () => {
+test('ERP Custom Inches ₹12/inch, Meter < 1 at ₹468/m (original rates)', () => {
   const c = calculateQuote({ products: [{ category: 'Fabric Heat DTF', variant: 'Custom Inches', quantity: 100 }] }, config);
-  assert.equal(c.printCost, Math.ceil((100 / 39) * 225));
+  const m = calculateQuote({ products: [{ category: 'Fabric Heat DTF', variant: 'Meter', quantity: 0.5 }] }, config);
+  assert.equal(c.printCost, 1200);
+  assert.equal(m.printCost, 234);
+});
+test('ERP Meter slab has no gap (9.995m → ₹225 rate)', () => {
+  const r = calculateQuote({ products: [{ category: 'Fabric Heat DTF', variant: 'Meter', quantity: 9.995 }] }, config);
+  assert.equal(r.lineItems[0].rate, 225);
 });
 
 console.log('\nBV catalog helpers');
