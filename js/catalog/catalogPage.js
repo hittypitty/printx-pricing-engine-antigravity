@@ -8,6 +8,7 @@
  */
 
 import { init as initHeader } from '../ui/header.js';
+import { getConfig } from '../state/configStore.js';
 import {
   loadProducts,
   getStockStatus,
@@ -18,7 +19,7 @@ import {
   escapeHtml,
 } from './productStore.js';
 
-const WHATSAPP_NUMBER = '917869581020';
+const WHATSAPP_NUMBER = getConfig().branding.whatsappNumber || '917869581020';
 
 const state = {
   products: [],

@@ -1,9 +1,10 @@
 /**
  * Validation Engine — Input validation, width guard
- * Pure function module — uses PRINTABLE_WIDTH from config parameter.
+ * Pure function module — uses printable widths from config / formats.
  */
 
 import { parseLength } from './formatParser.js';
+import { getPrintableWidthFor, UV_CUSTOM_MAX_LENGTH } from '../config/formats.js';
 
 /**
  * Validate all user inputs before the pipeline runs.
@@ -12,7 +13,8 @@ import { parseLength } from './formatParser.js';
  *   format: string,
  *   quantity: number,
  *   rawLength: string,
- *   printableWidth: number
+ *   printableWidth: number,
+ *   printTechnology: string
  * }} input
  * @param {object} config - Configuration object
  * @returns {{ isValid: boolean, error: string | null }}
@@ -22,7 +24,14 @@ export function validateInputs({ format, quantity, rawLength, printableWidth, pr
     throw new Error('validateInputs: config is required');
   }
   const { formats } = config;
-  const maxWidth = printTechnology === 'sublimation' ? 24 : formats.PRINTABLE_WIDTH;
+
+  if (!formats.FORMATS[format]) {
+    return { isValid: false, error: 'Please select a valid format.' };
+  }
+
+  const maxWidth = printTechnology === 'sublimation'
+    ? getPrintableWidthFor('sublimation')
+    : formats.PRINTABLE_WIDTH;
 
   if (printableWidth > maxWidth) {
     return {
@@ -39,24 +48,33 @@ export function validateInputs({ format, quantity, rawLength, printableWidth, pr
   }
 
   if (format === 'Meters' || format === 'Custom' || format === 'Roll') {
-    if (!rawLength || rawLength.trim() === '') {
+    const raw = rawLength === null || rawLength === undefined ? '' : String(rawLength);
+    if (raw.trim() === '') {
       return {
         isValid: false,
         error: `Length is required for ${format} format.`,
       };
     }
-    if (/[^0-9+\-*x.m\s]/i.test(rawLength)) {
+    // Allow digits, operators, x, spaces and the meter unit words
+    const stripped = raw.toLowerCase().replace(/meters?|mtrs?/g, '');
+    if (/[^0-9+\-*x.m()\s]/i.test(stripped)) {
       return {
         isValid: false,
         error: 'Length contains invalid characters.',
       };
     }
+    const parsedLen = parseLength(raw);
+    if (parsedLen <= 0) {
+      return {
+        isValid: false,
+        error: 'Enter a valid length greater than 0 (e.g. 20, 1m, 20+19 or 39x3).',
+      };
+    }
     if (format === 'Custom' && printTechnology !== 'sublimation') {
-      const parsedLen = parseLength(rawLength);
-      if (parsedLen < 8 || parsedLen > 20) {
-         return {
+      if (parsedLen < 8 || parsedLen > UV_CUSTOM_MAX_LENGTH) {
+        return {
           isValid: false,
-          error: 'Length must be between 8 and 20 inches for Custom format.',
+          error: `Length must be between 8 and ${UV_CUSTOM_MAX_LENGTH} inches for Custom format.`,
         };
       }
     }
@@ -64,4 +82,3 @@ export function validateInputs({ format, quantity, rawLength, printableWidth, pr
 
   return { isValid: true, error: null };
 }
-

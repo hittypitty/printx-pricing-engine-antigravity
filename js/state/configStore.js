@@ -8,7 +8,7 @@
  */
 
 import { FORMATS, ROLL_WIDTH, PRINTABLE_WIDTH } from '../config/formats.js';
-import { METER_SLABS, MICRO_RATE_SQ_INCH, CONVERSION_COST, DEFAULT_DESIGN_COUNT, PACKAGING_COST, UV_DTF_PRICING, SUBLIMATION_PRICING } from '../config/pricing.js';
+import { METER_SLABS, MICRO_RATE_SQ_INCH, CONVERSION_COST, DEFAULT_DESIGN_COUNT, PACKAGING_COST, TRANSPORT_COST, UV_DTF_PRICING, SUBLIMATION_PRICING } from '../config/pricing.js';
 import { COURIERS } from '../config/couriers.js';
 import { WEIGHT_PER_METER_KG, UV_DTF_SHIPPING_SLABS } from '../config/weights.js';
 
@@ -50,6 +50,7 @@ function buildDefaults() {
       CONVERSION_COST,
       DEFAULT_DESIGN_COUNT,
       PACKAGING_COST,
+      TRANSPORT_COST,
     },
     uvDtfPricing: deepClone(UV_DTF_PRICING),
     sublimationPricing: deepClone(SUBLIMATION_PRICING),
@@ -65,7 +66,7 @@ function buildDefaults() {
     },
     branding: {
       logoUrl: '',  // No hardcoded logo — set via admin panel
-      whatsappLink: 'https://wa.me/919876543210',
+      whatsappNumber: '917869581020', // used by header + catalog enquiry links
     },
   };
 }

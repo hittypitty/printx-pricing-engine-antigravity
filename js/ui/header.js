@@ -32,7 +32,7 @@ function render(container) {
   const logoSrc = branding.logoUrl || 'assets/images/logo.png';
   const logoHTML = `<img src="${logoSrc}" alt="Company Logo" class="header-logo" id="header-logo" />`;
 
-  const whatsappLink = 'https://wa.me/+917869581020';
+  const whatsappLink = `https://wa.me/${branding.whatsappNumber || '917869581020'}`;
 
   const navHTML = NAV_ITEMS.map(item => `
     <a href="${item.href}" class="app-nav-link ${item.page === page ? 'active' : ''}" ${item.page === page ? 'aria-current="page"' : ''}>${item.label}</a>
