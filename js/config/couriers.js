@@ -33,7 +33,7 @@ export const COURIERS = {
   },
   bluedart: {
     name: 'Bluedart',
-    base: 130,
+    base: 160,
     add: 130,
     baseWeight: 1.0,
     slab: 0.5,

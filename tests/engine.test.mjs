@@ -76,9 +76,9 @@ test('Sublimation A4 ×10 = ₹200, Roll 60" = ₹153.85', () => {
   assert.equal(quote({ printTechnology: 'sublimation', format: 'A4', quantity: 10 }).printCost, 200);
   assert.equal(quote({ printTechnology: 'sublimation', format: 'Roll', rawLength: '60' }).printCost, 153.85);
 });
-test('Courier slabs: DTDC Surface 1 kg = ₹185, Bluedart 1 kg = ₹260, Tirupati 1 kg = ₹60', () => {
+test('Courier slabs: DTDC Surface 1 kg = ₹185, Bluedart 1 kg = ₹290 (base ₹160 since Oct 2026), Tirupati 1 kg = ₹60', () => {
   assert.equal(calculateShipping('dtdc_surface', 0, 1, 1.0, config).shippingCost, 185);
-  assert.equal(calculateShipping('bluedart', 0, 1, 1.0, config).shippingCost, 260);
+  assert.equal(calculateShipping('bluedart', 0, 1, 1.0, config).shippingCost, 290);
   assert.equal(calculateShipping('tirupati', 0, 1, 1.0, config).shippingCost, 60);
 });
 test('Transport = ₹50, courier packaging = ₹20', () => {
@@ -184,6 +184,19 @@ test('tier validation catches overlap and gaps', () => {
   assert.ok(store.validateTiers([{ minQty: 1, maxQty: 9, price: 1 }, { minQty: 5, maxQty: '', price: 1 }]).length > 0);
   assert.ok(store.validateTiers([{ minQty: 1, maxQty: 9, price: 1 }, { minQty: 12, maxQty: '', price: 1 }]).length > 0);
   assert.equal(store.validateTiers([{ minQty: 1, maxQty: 9, price: 1 }, { minQty: 10, maxQty: '', price: 1 }]).length, 0);
+});
+
+const ds = await import('../js/dropship/dropshipRates.js');
+test('Dropship: 180 GSM round neck is ₹200; placements and add-ons add on top', () => {
+  assert.equal(ds.DROPSHIP_RATES['(180 GSM) Regular Fit T-Shirt (180 GSM)'], 200);
+  const v = '(180 GSM) Regular Fit T-Shirt (180 GSM)';
+  assert.equal(ds.unitRate(v, { Front: 'A4', 'Right Sleeve': 'Logo Only' }, ['Puff DTF']), 200 + 70 + 25 + 50);
+  assert.deepEqual(ds.lineTotal(v, 10, { Front: 'A4' }, []), { qty: 10, rate: 270, total: 2700 });
+});
+test('Dropship: non-apparel ignores print placements, qty floors at 1', () => {
+  assert.equal(ds.unitRate('Mug White', { Front: 'A3' }, ['Puff DTF']), 100);
+  assert.equal(ds.lineTotal('Mug White', 0, {}, []).total, 100);
+  assert.equal(ds.placementsFor('(400 GSM) Hoodie').some(p => p.key === 'Hood'), true);
 });
 
 console.log(`\n${passed} passed, ${failed} failed\n`);
