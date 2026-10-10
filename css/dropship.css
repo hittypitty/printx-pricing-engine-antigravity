@@ -1,8 +1,0 @@
-/* Dropship Calculator — only the few bits not already covered by the shared design system */
-.ds-place { padding: 10px 12px; border: 1px dashed var(--border-active); border-radius: var(--radius-md); margin-bottom: 10px; }
-.ds-place:last-child { margin-bottom: 0; }
-.ds-place-title { font-size: 12px; font-weight: 700; color: var(--text-secondary); margin-bottom: 8px; }
-.ds-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.ds-rate-box { background: var(--warning-bg); border-radius: var(--radius-md); padding: 10px 12px; font-size: 13px; margin-top: var(--space-lg); }
-.ds-remove { background: none; border: none; color: #ef4444; cursor: pointer; font-size: 14px; padding: 4px 8px; }
-.ds-empty { color: var(--text-muted); font-size: 13px; text-align: center; padding: 18px 0; }

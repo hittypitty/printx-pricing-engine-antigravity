@@ -11,6 +11,7 @@ import { calculateQuote } from '../modules/pricingBrain.js';
 import { update, getState } from '../state/store.js';
 import { getPrintableWidthFor, getPackingMarginFor, getImageWidthLimitFor } from '../config/formats.js';
 import { validateImageSize } from '../modules/imageProcessor.js';
+import { lineTotal, describeOptions } from '../modules/dropshipEngine.js';
 
 /**
  * Full recalculation pipeline. Called on any input change.
@@ -251,7 +252,14 @@ function onManualSizesUpdated(newSizes) {
 export function setPrintTechnology(tech) {
   const s = getState();
   const updateObj = { printTechnology: tech };
-  
+
+  if (tech === 'dropship') {
+    // Dropship products have no design input / format — just switch and recalculate.
+    update(updateObj);
+    recalculate();
+    return;
+  }
+
   if (tech === 'uv_dtf') {
     if (s.format === 'Meters' || s.format === 'A2' || s.format === 'Roll') {
       updateObj.format = 'Custom';
@@ -289,9 +297,52 @@ export function setUvPrintType(type) {
   recalculate();
 }
 
+/** Update the current Dropship selection (partial) and recalculate. */
+export function updateDropship(partial) {
+  const s = getState();
+  update({ dropship: { ...s.dropship, ...partial } });
+  recalculate();
+}
+
+function addDropshipToCart() {
+  const s = getState();
+  const d = s.dropship;
+  const { qty, rate, total } = lineTotal(d.variant, d.qty, d.placements, d.addons);
+  const cartItem = {
+    id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+    printTechnology: 'dropship',
+    variant: d.variant,
+    options: describeOptions(d.placements, d.addons),
+    format: 'Dropship',
+    isSheetFormat: true,
+    quantity: qty,
+    rate,
+    printCost: total,
+    conversionCost: 0,
+    conversionBreakdown: '',
+    conversions: [],
+    totalMeters: 0,
+    totalSqInches: 0,
+    length: 0,
+    pricingWidth: 0,
+    designCount: 0,
+    weight: Math.max(0, Number(d.weight) || 0),
+  };
+  update({
+    cart: [...(s.cart || []), cartItem],
+    // keep the product, reset the per-order choices
+    dropship: { ...d, qty: 1, placements: {}, addons: [] },
+  });
+  recalculate();
+}
+
 export function addToCart() {
   const s = getState();
   if (!s.isValid) return;
+  if (s.printTechnology === 'dropship') {
+    addDropshipToCart();
+    return;
+  }
 
   const itemId = Date.now().toString() + Math.random().toString(36).substr(2, 5);
 

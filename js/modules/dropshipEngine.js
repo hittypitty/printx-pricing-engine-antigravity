@@ -66,3 +66,40 @@ export function lineTotal(variant, qty, placements, addons) {
   const rate = unitRate(variant, placements, addons);
   return { qty: q, rate, total: Math.ceil(rate * q) };
 }
+
+/** Product groups for the dropdown (order = display order). Any product not listed falls under "Other". */
+export const DROPSHIP_GROUPS = [
+  { label: 'Garments', match: /T-Shirt|Polo|Jersey|Hoodie/i },
+  { label: 'Caps & Bags', match: /Caps|Tote/i },
+  { label: 'Drinkware', match: /Sipper|Mug/i },
+];
+
+export function groupedProducts() {
+  const names = Object.keys(DROPSHIP_RATES);
+  const used = new Set();
+  const groups = DROPSHIP_GROUPS.map(g => {
+    const items = names.filter(n => g.match.test(n));
+    items.forEach(n => used.add(n));
+    return { label: g.label, items };
+  });
+  const other = names.filter(n => !used.has(n));
+  if (other.length) groups.push({ label: 'Other', items: other });
+  return groups.filter(g => g.items.length);
+}
+
+/** Short human text for the print options of a line, e.g. "Front: A4, Right Sleeve: Logo Only, Puff DTF" */
+export function describeOptions(placements = {}, addons = []) {
+  const parts = Object.entries(placements).map(([k, s]) => `${k}: ${s}`);
+  addons.forEach(a => parts.push(a));
+  return parts.join(', ');
+}
+
+/** Step-by-step rate lines for the live "rate breakdown" box */
+export function rateBreakdown(variant, placements = {}, addons = []) {
+  const rows = [{ label: 'Base rate', amount: DROPSHIP_RATES[variant] || 0 }];
+  if (isApparel(variant)) {
+    Object.entries(placements).forEach(([pos, sz]) => rows.push({ label: `${pos} — ${sz}`, amount: SIZE_RATE[sz] || 0 }));
+    addons.forEach(a => rows.push({ label: a, amount: (ADDONS.find(x => x.value === a) || {}).rate || 0 }));
+  }
+  return rows;
+}

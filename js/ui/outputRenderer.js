@@ -18,16 +18,19 @@ function buildHTML(state) {
   const isUVAuto = state.printTechnology === 'uv_dtf' && (state.inputMode === 'image' || state.inputMode === 'manual-size');
   
   const hasCart = state.cart && state.cart.length > 0;
+  const isDropship = state.printTechnology === 'dropship';
   const metricLabelText = hasCart
     ? 'Items in Cart'
     : (isUVAuto ? 'Sheets Required' : (state.isSheetFormat ? 'Quantity' : 'Total Running'));
   const metricValueText = hasCart
     ? `${state.cart.length} item(s)`
-    : (isUVAuto ? `${state.quantity} sheets` : (state.isSheetFormat ? state.quantity + ' pcs' : state.totalMeters.toFixed(3) + 'm'));
+    : (isDropship ? `${state.dropshipQty || 0} pcs` : (isUVAuto ? `${state.quantity} sheets` : (state.isSheetFormat ? state.quantity + ' pcs' : state.totalMeters.toFixed(3) + 'm')));
   const isAuto = state.inputMode === 'image' || state.inputMode === 'manual-size';
   const metricSubText = hasCart
     ? `${state.cart.reduce((sum, item) => sum + (item.isSheetFormat ? item.quantity : 1), 0)} items total`
-    : (isAuto
+    : (isDropship
+      ? '@ ₹' + (state.dropshipRate || 0) + ' / pc'
+      : isAuto
         ? (state.printTechnology === 'uv_dtf'
             ? `${state.stickersPerSheet || 0} pcs / sheet`
             : `${state.stickersPerSheet || 0} pcs / meter`
@@ -110,6 +113,7 @@ function updateDOM(container, state) {
   const isUVAuto = state.printTechnology === 'uv_dtf' && (state.inputMode === 'image' || state.inputMode === 'manual-size');
   
   const hasCart = state.cart && state.cart.length > 0;
+  const isDropship = state.printTechnology === 'dropship';
 
   // KPI blocks
   const metricLabel = container.querySelector('#kpi-metric-label');
@@ -123,13 +127,13 @@ function updateDOM(container, state) {
   if (metricValue) {
     metricValue.textContent = hasCart
       ? `${state.cart.length} item(s)`
-      : (isUVAuto ? `${state.quantity} sheets` : (state.isSheetFormat ? state.quantity + ' pcs' : state.totalMeters.toFixed(3) + 'm'));
+      : (isDropship ? `${state.dropshipQty || 0} pcs` : (isUVAuto ? `${state.quantity} sheets` : (state.isSheetFormat ? state.quantity + ' pcs' : state.totalMeters.toFixed(3) + 'm')));
   }
   if (metricSub) {
     const isAuto = state.inputMode === 'image' || state.inputMode === 'manual-size';
     metricSub.textContent = hasCart
       ? `${state.cart.reduce((sum, item) => sum + (item.isSheetFormat ? item.quantity : 1), 0)} items total`
-      : (isAuto
+      : (isDropship ? '@ ₹' + (state.dropshipRate || 0) + ' / pc' : isAuto
           ? (state.printTechnology === 'uv_dtf'
               ? `${state.stickersPerSheet || 0} pcs / sheet`
               : `${state.stickersPerSheet || 0} pcs / meter`
@@ -180,6 +184,8 @@ function updateDOM(container, state) {
   // Effective rate sub-text
   const bRate = container.querySelector('#breakdown-effective-rate');
   if (bRate) {
+    const onlyDropship = state.printTechnology === 'dropship' || (hasCart && state.cart.every(i => i.printTechnology === 'dropship'));
+    bRate.style.display = onlyDropship ? 'none' : '';
     bRate.textContent = 'Effective print rate: ₹' + effectiveRate + ' / sq in';
   }
 

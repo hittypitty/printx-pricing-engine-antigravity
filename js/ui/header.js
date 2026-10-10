@@ -8,14 +8,12 @@ import { getConfig, subscribeConfig } from '../state/configStore.js';
 
 const NAV_ITEMS = [
   { page: 'pricing', label: 'Pricing Engine', href: 'index.html' },
-  { page: 'dropship', label: 'Dropship Calculator', href: 'dropship.html' },
   { page: 'catalog', label: 'BV Catalog', href: 'catalog.html' },
   { page: 'manage', label: 'Inventory', href: 'catalog-admin.html' },
 ];
 
 const SUBTITLES = {
   pricing: 'PRICING ENGINE',
-  dropship: 'DROPSHIP CALCULATOR',
   catalog: 'BV CATALOG',
   manage: 'INVENTORY',
 };

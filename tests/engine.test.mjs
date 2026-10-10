@@ -186,7 +186,7 @@ test('tier validation catches overlap and gaps', () => {
   assert.equal(store.validateTiers([{ minQty: 1, maxQty: 9, price: 1 }, { minQty: 10, maxQty: '', price: 1 }]).length, 0);
 });
 
-const ds = await import('../js/dropship/dropshipRates.js');
+const ds = await import('../js/modules/dropshipEngine.js');
 test('Dropship: 180 GSM round neck is ₹200; placements and add-ons add on top', () => {
   assert.equal(ds.DROPSHIP_RATES['(180 GSM) Regular Fit T-Shirt (180 GSM)'], 200);
   const v = '(180 GSM) Regular Fit T-Shirt (180 GSM)';

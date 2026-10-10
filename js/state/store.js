@@ -5,7 +5,7 @@
 
 const state = {
   // --- User Inputs ---
-  printTechnology: 'fabric', // 'fabric' | 'uv_dtf'
+  printTechnology: 'fabric', // 'fabric' | 'uv_dtf' | 'sublimation' | 'dropship'
   uvPrintType: 'normal', // 'normal' | '3d'
   designTab: 'image', // 'image' | 'manual-size'
   inputMode: 'manual', // 'manual' | 'image' | 'manual-size'
@@ -16,6 +16,7 @@ const state = {
   quantity: 1,
   conversions: [], // Array of { id, type, qty }
   cart: [], // Array of cart items for mixed orders
+  dropship: { variant: 'Sipper', qty: 1, placements: {}, addons: [], weight: 0.5 }, // current Dropship selection (printTechnology === 'dropship')
   designCount: 0,
   deliveryMethod: 'pickup',
   selectedPartner: null,

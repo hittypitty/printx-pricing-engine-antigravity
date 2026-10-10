@@ -17,6 +17,7 @@ import {
   calculateUVDTFA3EquivalentSheets,
 } from './deliveryEngine.js';
 import { generateQuote } from './quoteGenerator.js';
+import { lineTotal, describeOptions } from './dropshipEngine.js';
 import {
   getPrintableWidthFor,
   getImageWidthLimitFor,
@@ -243,13 +244,21 @@ export function calculateCart(cart, deliveryMethod, courierFilter, selectedPartn
     .reduce((sum, item) => sum + (item.totalMeters || 0), 0);
   const fabricWeight = totalRunningMeters > 0 ? getFabricWeight(totalRunningMeters) : 0;
 
-  const combinedWeightVal = uvWeight + fabricWeight;
+  // 3. Dropship parcels (weight is entered per line)
+  const dropshipWeight = cart
+    .filter(item => item.printTechnology === 'dropship')
+    .reduce((sum, item) => sum + (Number(item.weight) || 0), 0);
+
+  const combinedWeightVal = uvWeight + fabricWeight + dropshipWeight;
   const delivery = resolveDelivery({ deliveryMethod, courierFilter, selectedPartner }, totalRunningMeters, 1, combinedWeightVal, config);
 
   const finalTotal = Math.ceil(totalPrintCost + totalConversionCost + delivery.packagingCost + delivery.shippingCost);
 
   // Print breakdown for cart
   const printBreakdown = cart.map(item => {
+    if (item.printTechnology === 'dropship') {
+      return `${item.variant} × ${item.quantity} (₹${Math.ceil(item.printCost)})`;
+    }
     const tech = item.printTechnology === 'uv_dtf' ? 'UV ' : (item.printTechnology === 'sublimation' ? 'Sublimation ' : '');
     if (!item.isSheetFormat) {
       const label = item.printTechnology === 'sublimation' ? 'Sublimation' : 'Fabric';
@@ -675,6 +684,44 @@ function calculateAutoQuote(s, config) {
 }
 
 // ======================================================================
+// Dropship (ready products — rate per piece + print placements / add-ons)
+// ======================================================================
+
+function calculateDropshipQuote(s, config) {
+  const d = s.dropship || {};
+  const { qty, rate, total } = lineTotal(d.variant, d.qty, d.placements, d.addons);
+  const weight = Math.max(0, Number(d.weight) || 0);
+  const delivery = resolveDelivery(s, 0, qty, weight, config);
+  const finalTotal = Math.ceil(total + delivery.packagingCost + delivery.shippingCost);
+  const options = describeOptions(d.placements, d.addons);
+
+  const result = {
+    isValid: true,
+    validationError: null,
+    printCost: total,
+    effectiveRate: '0.00',
+    rateApplied: rate,
+    methodLabel: 'Dropship',
+    printBreakdown: `${d.variant} × ${qty} @ ₹${rate} / pc`,
+    conversionCost: 0,
+    conversionBreakdown: '',
+    ...delivery,
+    finalTotal,
+    activePrintCost: total,
+    activeConversionCost: 0,
+    printTechnology: s.printTechnology,
+    deliveryMethod: s.deliveryMethod,
+    courierFilter: s.courierFilter,
+    cart: s.cart,
+    dropshipQty: qty,
+    dropshipRate: rate,
+    dropshipItem: { variant: d.variant, qty, rate, total, options },
+  };
+
+  return finalize(result, s, config);
+}
+
+// ======================================================================
 // Manual mode (format + length/quantity)
 // ======================================================================
 
@@ -761,6 +808,9 @@ export function calculateQuote(inputs, config) {
   }
 
   const s = inputs;
+  if (s.printTechnology === 'dropship') {
+    return calculateDropshipQuote(s, config);
+  }
   const isImageMode = s.inputMode === 'image' && s.images && s.images.length > 0;
   const isManualSizeMode = s.inputMode === 'manual-size' && s.manualSizes && s.manualSizes.length > 0;
 

@@ -16,7 +16,7 @@ export function generateQuote(state) {
     isSheetFormat, rateApplied, methodLabel,
     deliveryMethod, partnerName, shippingCost, countedWeight, eta,
     packagingCost, printCost, conversionCost, designCount, finalTotal,
-    printTechnology, uvPrintType, cart
+    printTechnology, uvPrintType, cart, dropshipItem
   } = state;
 
   if (cart && cart.length > 0) {
@@ -27,13 +27,15 @@ export function generateQuote(state) {
     const hasFabric = cart.some(item => item.printTechnology === 'fabric');
     const hasUV = cart.some(item => item.printTechnology === 'uv_dtf');
     const hasSublimation = cart.some(item => item.printTechnology === 'sublimation');
+    const hasDropship = cart.some(item => item.printTechnology === 'dropship');
     
     let techHeader = 'print';
-    const techCount = (hasFabric ? 1 : 0) + (hasUV ? 1 : 0) + (hasSublimation ? 1 : 0);
+    const techCount = (hasFabric ? 1 : 0) + (hasUV ? 1 : 0) + (hasSublimation ? 1 : 0) + (hasDropship ? 1 : 0);
     if (techCount === 1) {
       if (hasFabric) techHeader = 'Fabric DTF print';
       else if (hasUV) techHeader = 'UV DTF print';
       else if (hasSublimation) techHeader = 'Sublimation print';
+      else if (hasDropship) techHeader = 'dropship';
     }
     
     lines.push(`Here is the quote for your ${techHeader} requirement:`);
@@ -41,6 +43,13 @@ export function generateQuote(state) {
     lines.push('🛒 *Items:*');
 
     cart.forEach((item, index) => {
+      if (item.printTechnology === 'dropship') {
+        lines.push(`${index + 1}. ${item.variant}`);
+        if (item.options) lines.push(`   • Print: ${item.options}`);
+        lines.push(`   • Quantity: ${item.quantity} piece(s) × ₹${item.rate}`);
+        lines.push(`   • Cost: ₹${Math.ceil(item.printCost)}`);
+        return;
+      }
       let itemTech = 'Fabric DTF';
       if (item.printTechnology === 'uv_dtf') {
         itemTech = `UV DTF (${item.uvPrintType === '3d' ? '3D' : 'Normal'})`;
@@ -68,7 +77,7 @@ export function generateQuote(state) {
     });
 
     lines.push('');
-    lines.push(`🖨️ Total Print Cost: ₹${Math.ceil(printCost)}`);
+    lines.push(`${cart.every(i => i.printTechnology === 'dropship') ? '🛍️ Total Product Cost' : '🖨️ Total Print Cost'}: ₹${Math.ceil(printCost)}`);
     if (conversionCost > 0) {
       lines.push(`✨ Total Conversion Cost: ₹${Math.ceil(conversionCost)}`);
     }
@@ -104,6 +113,37 @@ export function generateQuote(state) {
 
   lines.push('Hello! 🌟 Thank you for reaching out to us.');
   lines.push('');
+
+  if (printTechnology === 'dropship' && dropshipItem) {
+    lines.push('Here is the quote for your dropship requirement:');
+    lines.push(`🛍️ Product: ${dropshipItem.variant}`);
+    if (dropshipItem.options) lines.push(`🖨️ Print: ${dropshipItem.options}`);
+    lines.push(`📦 Quantity: ${dropshipItem.qty} piece(s) × ₹${dropshipItem.rate}`);
+    lines.push(`💵 Product Cost: ₹${Math.ceil(printCost)}`);
+
+    if (deliveryMethod === 'pickup') {
+      lines.push('🏢 Delivery: Office Pickup (Free)');
+    } else if (deliveryMethod === 'transport') {
+      lines.push(`🚚 Delivery Cost: ₹${Math.ceil(shippingCost)} (Local Transport)`);
+    } else {
+      lines.push(`🚚 Delivery Cost: ₹${Math.ceil(shippingCost + packagingCost)} (${partnerName}${eta ? ' - ETA: ' + eta : ''})`);
+    }
+
+    lines.push('');
+    lines.push(`💰 *Final Total: ₹${Math.ceil(finalTotal)}*`);
+    if (deliveryMethod === 'courier') {
+      lines.push('');
+      lines.push('📦 _Note:_');
+      lines.push('_Delivery charges are estimated based on current weight._');
+      lines.push('_Final charges may vary after packaging._');
+      lines.push('_Our team will confirm before dispatch._');
+    }
+    lines.push('');
+    lines.push('To proceed with the order, please make the payment via UPI/Bank Transfer and share the receipt.');
+    lines.push('');
+    lines.push('Let us know if you have any questions! Have a great day. 😊');
+    return lines.join('\n');
+  }
   
   let techLabel = 'Fabric DTF';
   if (printTechnology === 'uv_dtf') {

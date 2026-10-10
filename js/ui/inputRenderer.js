@@ -140,6 +140,7 @@ function buildHTML(state) {
           <button class="btn btn-select ${isFabric ? 'active' : ''}" data-action="set-tech" data-value="fabric" id="tech-fabric">👕 Fabric DTF</button>
           <button class="btn btn-select ${isUV ? 'active' : ''}" data-action="set-tech" data-value="uv_dtf" id="tech-uv">✨ UV DTF</button>
           <button class="btn btn-select ${isSublimation ? 'active' : ''}" data-action="set-tech" data-value="sublimation" id="tech-sublimation">🔥 Sublimation</button>
+          <button class="btn btn-select ${tech === 'dropship' ? 'active' : ''}" data-action="set-tech" data-value="dropship" id="tech-dropship">🛍️ Dropship</button>
         </div>
         
         <div id="uv-options-container" style="display: ${isUV ? 'block' : 'none'}; margin-top: 12px;">
@@ -152,7 +153,9 @@ function buildHTML(state) {
       </div>
     </div>
 
-    <div class="card">
+    <div id="dropship-mount" style="display: ${tech === 'dropship' ? 'block' : 'none'};"></div>
+
+    <div class="card" id="design-card" style="display: ${tech === 'dropship' ? 'none' : 'block'};">
       <div class="card-header">
         <h2 class="card-title">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="card-icon">
@@ -184,7 +187,7 @@ function buildHTML(state) {
       </div>
     </div>
     
-    <div class="card">
+    <div class="card" id="print-details-card" style="display: ${tech === 'dropship' ? 'none' : 'block'};">
       <div class="card-header">
         <h2 class="card-title">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ec4899" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="card-icon">
@@ -522,6 +525,15 @@ function updateDOM(container, state) {
   container.querySelectorAll('#tech-uv').forEach(btn => btn.classList.toggle('active', isUV));
   container.querySelectorAll('#tech-sublimation').forEach(btn => btn.classList.toggle('active', isSublimation));
   
+  container.querySelectorAll('#tech-dropship').forEach(btn => btn.classList.toggle('active', tech === 'dropship'));
+  const isDropshipTech = tech === 'dropship';
+  const designCard = container.querySelector('#design-card');
+  const printDetailsCard = container.querySelector('#print-details-card');
+  const dropshipMount = container.querySelector('#dropship-mount');
+  if (designCard) designCard.style.display = isDropshipTech ? 'none' : 'block';
+  if (printDetailsCard) printDetailsCard.style.display = isDropshipTech ? 'none' : 'block';
+  if (dropshipMount) dropshipMount.style.display = isDropshipTech ? 'block' : 'none';
+
   const uvOptions = container.querySelector('#uv-options-container');
   if (uvOptions) uvOptions.style.display = isUV ? 'block' : 'none';
   
@@ -810,6 +822,21 @@ function updateDOM(container, state) {
   const cartList = container.querySelector('#cart-items-list');
   if (cartList && state.cart) {
     cartList.innerHTML = state.cart.map(item => {
+      if (item.printTechnology === 'dropship') {
+        return `
+        <div class="cart-item">
+          <div class="cart-item-details">
+            <div class="cart-item-title">Dropship — ${escapeHtml(item.variant)}</div>
+            <div class="cart-item-sub">
+              <span>Qty: ${item.quantity} pcs × ₹${item.rate}</span>
+              <span>•</span>
+              <span>Price: ₹${Math.ceil(item.printCost)}</span>
+              ${item.options ? `<span>•</span><span>${escapeHtml(item.options)}</span>` : ''}
+            </div>
+          </div>
+          <button class="btn btn-icon" data-action="remove-cart-item" data-id="${item.id}" style="width: 36px; height: 36px; min-height: 36px; padding: 0; display: flex; align-items: center; justify-content: center; color: #ef4444; border: 1px solid #fecaca; background: #fef2f2; border-radius: 8px; flex-shrink: 0; cursor: pointer; transition: all var(--transition-fast);">✕</button>
+        </div>`;
+      }
       let itemTech = 'Fabric DTF';
       if (item.printTechnology === 'uv_dtf') {
         itemTech = `UV DTF (${item.uvPrintType === '3d' ? '3D' : 'Normal'})`;
