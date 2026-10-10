@@ -1,6 +1,6 @@
 /**
  * Header — PrintX reference: LOGO | PRICING ENGINE ... WhatsApp + phone
- * Also renders the page navigation tabs (Pricing Engine / BV Catalog / Manage Products).
+ * The Pricing Engine is a clean one-pager (no tabs). Nav tabs show only on the catalog / inventory pages.
  * Active tab comes from the container's data-page attribute.
  */
 
@@ -61,7 +61,7 @@ function render(container) {
         </div>
       </div>
     </div>
-    <nav class="app-nav" aria-label="Main">${navHTML}</nav>
+    ${page === 'pricing' ? '' : `<nav class="app-nav" aria-label="Main">${navHTML}</nav>`}
   `;
 }
 
