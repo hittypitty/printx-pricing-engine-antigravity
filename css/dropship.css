@@ -1,30 +1,8 @@
-/* Dropship Calculator page — scoped under #dropship-root */
-#dropship-root { max-width: 1100px; margin: 0 auto; padding: 20px 16px 40px; font-family: var(--font-family); color: var(--text-primary); font-size: 14px; }
-#dropship-root * { box-sizing: border-box; }
-#dropship-root h1 { font-size: 20px; margin: 0 0 4px; }
-#dropship-root .ds-sub { color: var(--text-muted); font-size: 12px; margin-bottom: 16px; }
-#dropship-root .ds-grid { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 16px; align-items: start; }
-@media (max-width: 860px) { #dropship-root .ds-grid { grid-template-columns: 1fr; } }
-#dropship-root .ds-card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
-#dropship-root .ds-card h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .5px; color: var(--text-secondary); margin: 0 0 12px; }
-#dropship-root label { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-secondary); margin: 10px 0 4px; }
-#dropship-root select, #dropship-root input[type=number], #dropship-root input[type=text] { width: 100%; padding: 9px 10px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-input); font: inherit; }
-#dropship-root .ds-row { display: flex; gap: 10px; }
-#dropship-root .ds-row > * { flex: 1; }
-#dropship-root .ds-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-#dropship-root .ds-chip { border: 1px solid var(--border-color); background: var(--bg-card); border-radius: 999px; padding: 5px 11px; font-size: 12px; cursor: pointer; font-weight: 600; color: var(--text-secondary); }
-#dropship-root .ds-chip.active { border-color: var(--accent-purple); background: #f5ecff; color: var(--accent-purple); }
-#dropship-root .ds-place { border: 1px dashed var(--border-active); border-radius: 8px; padding: 8px 10px; margin-top: 8px; }
-#dropship-root .ds-place b { font-size: 12px; }
-#dropship-root .ds-btn { border: 0; border-radius: 8px; padding: 10px 14px; cursor: pointer; font: inherit; font-weight: 700; }
-#dropship-root .ds-btn-primary { background: var(--gradient-primary); color: #fff; box-shadow: var(--gradient-btn-shadow); width: 100%; margin-top: 14px; }
-#dropship-root .ds-btn-wa { background: var(--whatsapp); color: #fff; width: 100%; margin-top: 10px; }
-#dropship-root .ds-btn-x { background: transparent; color: var(--danger); padding: 4px 8px; }
-#dropship-root table { width: 100%; border-collapse: collapse; font-size: 13px; }
-#dropship-root td, #dropship-root th { padding: 7px 4px; border-bottom: 1px solid var(--border-color); text-align: left; }
-#dropship-root .num { text-align: right; }
-#dropship-root .ds-sum { display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; padding-top: 8px; }
-#dropship-root .ds-sum.grand { font-size: 18px; font-weight: 800; padding-top: 12px; }
-#dropship-root .ds-muted { color: var(--text-muted); font-size: 12px; }
-#dropship-root textarea { width: 100%; min-height: 150px; border: 1px solid var(--border-color); border-radius: 8px; padding: 10px; font: 12px/1.45 var(--font-mono); background: var(--bg-input); margin-top: 10px; }
-#dropship-root .ds-preview { background: var(--warning-bg); border-radius: 8px; padding: 8px 10px; margin-top: 12px; font-size: 13px; }
+/* Dropship Calculator — only the few bits not already covered by the shared design system */
+.ds-place { padding: 10px 12px; border: 1px dashed var(--border-active); border-radius: var(--radius-md); margin-bottom: 10px; }
+.ds-place:last-child { margin-bottom: 0; }
+.ds-place-title { font-size: 12px; font-weight: 700; color: var(--text-secondary); margin-bottom: 8px; }
+.ds-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.ds-rate-box { background: var(--warning-bg); border-radius: var(--radius-md); padding: 10px 12px; font-size: 13px; margin-top: var(--space-lg); }
+.ds-remove { background: none; border: none; color: #ef4444; cursor: pointer; font-size: 14px; padding: 4px 8px; }
+.ds-empty { color: var(--text-muted); font-size: 13px; text-align: center; padding: 18px 0; }
