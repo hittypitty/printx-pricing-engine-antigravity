@@ -7,7 +7,7 @@
 import { getState, subscribe } from '../state/store.js';
 import { updateDropship, addToCart } from '../controller/appController.js';
 import {
-  DROPSHIP_RATES, ADDONS, isApparel, placementsFor, groupedProducts, rateBreakdown, unitRate, lineTotal,
+  baseRate, DIGITAL_RATES, ADDONS, isApparel, placementsFor, groupedProducts, rateBreakdown, unitRate, lineTotal,
 } from '../modules/dropshipEngine.js';
 
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -18,27 +18,32 @@ let lastShape = '';
 export function init(container) {
   if (!container) return;
   mount = container;
-  render(getState().dropship);
+  render(current(getState()));
   mount.addEventListener('change', onChange);
   mount.addEventListener('input', onInput);
   mount.addEventListener('click', onClick);
   subscribe(state => {
     // Rebuild only when the structure changes (product / selections); keep typing focus otherwise.
-    const d = state.dropship;
-    const shape = JSON.stringify([d.variant, d.placements, d.addons, state.cart ? state.cart.length : 0]);
+    const d = current(state);
+    const shape = JSON.stringify([state.printTechnology, d.variant, d.placements, d.addons, state.cart ? state.cart.length : 0]);
     if (shape !== lastShape) render(d);
     else refreshSummary(d);
   });
 }
 
+const isDigital = () => getState().printTechnology === 'digital';
+const current = state => (state.printTechnology === 'digital' ? state.digital : state.dropship);
+
 function render(d) {
   const hadFocus = mount.contains(document.activeElement) ? document.activeElement.id : null;
-  lastShape = JSON.stringify([d.variant, d.placements, d.addons, (getState().cart || []).length]);
+  lastShape = JSON.stringify([getState().printTechnology, d.variant, d.placements, d.addons, (getState().cart || []).length]);
   const apparel = isApparel(d.variant);
 
-  const productOptions = groupedProducts().map(g =>
+  const digital = isDigital();
+  const groups = digital ? [{ label: 'Digital Printing (Paper)', items: Object.keys(DIGITAL_RATES) }] : groupedProducts();
+  const productOptions = groups.map(g =>
     `<optgroup label="${esc(g.label)}">${g.items.map(n =>
-      `<option value="${esc(n)}" ${n === d.variant ? 'selected' : ''}>${esc(n)} — ₹${DROPSHIP_RATES[n]}</option>`).join('')}</optgroup>`
+      `<option value="${esc(n)}" ${n === d.variant ? 'selected' : ''}>${esc(n)} — ₹${baseRate(n)}</option>`).join('')}</optgroup>`
   ).join('');
 
   const placementRows = apparel ? `
@@ -71,7 +76,7 @@ function render(d) {
             <line x1="3" y1="6" x2="21" y2="6"></line>
             <path d="M16 10a4 4 0 0 1-8 0"></path>
           </svg>
-          Dropship Product
+          ${digital ? 'Digital Printing (Paper)' : 'Dropship Product'}
         </h2>
       </div>
       <div class="card-body">
@@ -81,7 +86,7 @@ function render(d) {
             <select class="input-field" data-ds="variant" id="ds-variant">${productOptions}</select>
           </div>
           <div style="flex: 1; min-width: 120px;">
-            <label class="field-label">QUANTITY</label>
+            <label class="field-label">${digital ? 'SHEETS' : 'QUANTITY'}</label>
             <input type="number" class="input-field" min="1" step="1" value="${esc(d.qty)}" data-ds="qty" id="ds-qty" />
           </div>
           <div style="flex: 1; min-width: 110px;">

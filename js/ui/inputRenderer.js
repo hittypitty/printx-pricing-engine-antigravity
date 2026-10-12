@@ -141,6 +141,7 @@ function buildHTML(state) {
           <button class="btn btn-select ${isUV ? 'active' : ''}" data-action="set-tech" data-value="uv_dtf" id="tech-uv">✨ UV DTF</button>
           <button class="btn btn-select ${isSublimation ? 'active' : ''}" data-action="set-tech" data-value="sublimation" id="tech-sublimation">🔥 Sublimation</button>
           <button class="btn btn-select ${tech === 'dropship' ? 'active' : ''}" data-action="set-tech" data-value="dropship" id="tech-dropship">🛍️ Dropship</button>
+          <button class="btn btn-select ${tech === 'digital' ? 'active' : ''}" data-action="set-tech" data-value="digital" id="tech-digital">🖨️ Digital</button>
         </div>
         
         <div id="uv-options-container" style="display: ${isUV ? 'block' : 'none'}; margin-top: 12px;">
@@ -153,9 +154,9 @@ function buildHTML(state) {
       </div>
     </div>
 
-    <div id="dropship-mount" style="display: ${tech === 'dropship' ? 'block' : 'none'};"></div>
+    <div id="dropship-mount" style="display: ${(tech === 'dropship' || tech === 'digital') ? 'block' : 'none'};"></div>
 
-    <div class="card" id="design-card" style="display: ${tech === 'dropship' ? 'none' : 'block'};">
+    <div class="card" id="design-card" style="display: ${(tech === 'dropship' || tech === 'digital') ? 'none' : 'block'};">
       <div class="card-header">
         <h2 class="card-title">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="card-icon">
@@ -187,7 +188,7 @@ function buildHTML(state) {
       </div>
     </div>
     
-    <div class="card" id="print-details-card" style="display: ${tech === 'dropship' ? 'none' : 'block'};">
+    <div class="card" id="print-details-card" style="display: ${(tech === 'dropship' || tech === 'digital') ? 'none' : 'block'};">
       <div class="card-header">
         <h2 class="card-title">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ec4899" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="card-icon">
@@ -526,7 +527,8 @@ function updateDOM(container, state) {
   container.querySelectorAll('#tech-sublimation').forEach(btn => btn.classList.toggle('active', isSublimation));
   
   container.querySelectorAll('#tech-dropship').forEach(btn => btn.classList.toggle('active', tech === 'dropship'));
-  const isDropshipTech = tech === 'dropship';
+  container.querySelectorAll('#tech-digital').forEach(btn => btn.classList.toggle('active', tech === 'digital'));
+  const isDropshipTech = tech === 'dropship' || tech === 'digital';
   const designCard = container.querySelector('#design-card');
   const printDetailsCard = container.querySelector('#print-details-card');
   const dropshipMount = container.querySelector('#dropship-mount');
@@ -822,11 +824,11 @@ function updateDOM(container, state) {
   const cartList = container.querySelector('#cart-items-list');
   if (cartList && state.cart) {
     cartList.innerHTML = state.cart.map(item => {
-      if (item.printTechnology === 'dropship') {
+      if (item.printTechnology === 'dropship' || item.printTechnology === 'digital') {
         return `
         <div class="cart-item">
           <div class="cart-item-details">
-            <div class="cart-item-title">Dropship — ${escapeHtml(item.variant)}</div>
+            <div class="cart-item-title">${item.printTechnology === 'digital' ? 'Digital' : 'Dropship'} — ${escapeHtml(item.variant)}</div>
             <div class="cart-item-sub">
               <span>Qty: ${item.quantity} pcs × ₹${item.rate}</span>
               <span>•</span>

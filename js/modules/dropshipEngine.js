@@ -29,6 +29,19 @@ export const DROPSHIP_RATES = {
 };
 
 /** Print add-on per placement, by chosen print size */
+/** Digital Printing (Paper) — flat rate per sheet, same rates as the ERP */
+export const DIGITAL_RATES = {
+  'Spot UV - Paper Sheet (Matt)': 250,
+  'Gold Foil - Paper Sheet (Matt)': 250,
+};
+
+/** Rate lookup across both catalogues */
+export const baseRate = variant => (DROPSHIP_RATES[variant] ?? DIGITAL_RATES[variant] ?? 0);
+
+/** Technologies that sell ready catalogue items (no design input / format) */
+export const CATALOG_TECHS = ['dropship', 'digital'];
+export const isCatalogTech = t => CATALOG_TECHS.includes(t);
+
 export const SIZE_RATE = { 'Logo': 25, 'Logo Only': 25, 'A4': 70, 'A3': 120, 'A2': 250 };
 
 export const ADDONS = [
@@ -53,7 +66,7 @@ export function placementsFor(variant) {
 
 /** Per-piece rate = base + each placement size + each add-on (garments only) */
 export function unitRate(variant, placements = {}, addons = []) {
-  let rate = DROPSHIP_RATES[variant] || 0;
+  let rate = baseRate(variant);
   if (isApparel(variant)) {
     Object.values(placements).forEach(sz => { rate += SIZE_RATE[sz] || 0; });
     addons.forEach(a => { rate += (ADDONS.find(x => x.value === a) || {}).rate || 0; });
@@ -96,7 +109,7 @@ export function describeOptions(placements = {}, addons = []) {
 
 /** Step-by-step rate lines for the live "rate breakdown" box */
 export function rateBreakdown(variant, placements = {}, addons = []) {
-  const rows = [{ label: 'Base rate', amount: DROPSHIP_RATES[variant] || 0 }];
+  const rows = [{ label: 'Base rate', amount: baseRate(variant) }];
   if (isApparel(variant)) {
     Object.entries(placements).forEach(([pos, sz]) => rows.push({ label: `${pos} — ${sz}`, amount: SIZE_RATE[sz] || 0 }));
     addons.forEach(a => rows.push({ label: a, amount: (ADDONS.find(x => x.value === a) || {}).rate || 0 }));

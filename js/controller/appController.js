@@ -11,7 +11,7 @@ import { calculateQuote } from '../modules/pricingBrain.js';
 import { update, getState } from '../state/store.js';
 import { getPrintableWidthFor, getPackingMarginFor, getImageWidthLimitFor } from '../config/formats.js';
 import { validateImageSize } from '../modules/imageProcessor.js';
-import { lineTotal, describeOptions } from '../modules/dropshipEngine.js';
+import { lineTotal, describeOptions, isCatalogTech } from '../modules/dropshipEngine.js';
 
 /**
  * Full recalculation pipeline. Called on any input change.
@@ -253,8 +253,8 @@ export function setPrintTechnology(tech) {
   const s = getState();
   const updateObj = { printTechnology: tech };
 
-  if (tech === 'dropship') {
-    // Dropship products have no design input / format — just switch and recalculate.
+  if (isCatalogTech(tech)) {
+    // Dropship / Digital products have no design input / format — just switch and recalculate.
     update(updateObj);
     recalculate();
     return;
@@ -300,20 +300,22 @@ export function setUvPrintType(type) {
 /** Update the current Dropship selection (partial) and recalculate. */
 export function updateDropship(partial) {
   const s = getState();
-  update({ dropship: { ...s.dropship, ...partial } });
+  const key = s.printTechnology === 'digital' ? 'digital' : 'dropship';
+  update({ [key]: { ...s[key], ...partial } });
   recalculate();
 }
 
 function addDropshipToCart() {
   const s = getState();
-  const d = s.dropship;
+  const key = s.printTechnology === 'digital' ? 'digital' : 'dropship';
+  const d = s[key];
   const { qty, rate, total } = lineTotal(d.variant, d.qty, d.placements, d.addons);
   const cartItem = {
     id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
-    printTechnology: 'dropship',
+    printTechnology: key,
     variant: d.variant,
     options: describeOptions(d.placements, d.addons),
-    format: 'Dropship',
+    format: key === 'digital' ? 'Digital' : 'Dropship',
     isSheetFormat: true,
     quantity: qty,
     rate,
@@ -331,7 +333,7 @@ function addDropshipToCart() {
   update({
     cart: [...(s.cart || []), cartItem],
     // keep the product, reset the per-order choices
-    dropship: { ...d, qty: 1, placements: {}, addons: [] },
+    [key]: { ...d, qty: 1, placements: {}, addons: [] },
   });
   recalculate();
 }
@@ -339,7 +341,7 @@ function addDropshipToCart() {
 export function addToCart() {
   const s = getState();
   if (!s.isValid) return;
-  if (s.printTechnology === 'dropship') {
+  if (isCatalogTech(s.printTechnology)) {
     addDropshipToCart();
     return;
   }

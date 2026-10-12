@@ -18,7 +18,7 @@ function buildHTML(state) {
   const isUVAuto = state.printTechnology === 'uv_dtf' && (state.inputMode === 'image' || state.inputMode === 'manual-size');
   
   const hasCart = state.cart && state.cart.length > 0;
-  const isDropship = state.printTechnology === 'dropship';
+  const isDropship = state.printTechnology === 'dropship' || state.printTechnology === 'digital';
   const metricLabelText = hasCart
     ? 'Items in Cart'
     : (isUVAuto ? 'Sheets Required' : (state.isSheetFormat ? 'Quantity' : 'Total Running'));
@@ -113,7 +113,7 @@ function updateDOM(container, state) {
   const isUVAuto = state.printTechnology === 'uv_dtf' && (state.inputMode === 'image' || state.inputMode === 'manual-size');
   
   const hasCart = state.cart && state.cart.length > 0;
-  const isDropship = state.printTechnology === 'dropship';
+  const isDropship = state.printTechnology === 'dropship' || state.printTechnology === 'digital';
 
   // KPI blocks
   const metricLabel = container.querySelector('#kpi-metric-label');
@@ -184,7 +184,8 @@ function updateDOM(container, state) {
   // Effective rate sub-text
   const bRate = container.querySelector('#breakdown-effective-rate');
   if (bRate) {
-    const onlyDropship = state.printTechnology === 'dropship' || (hasCart && state.cart.every(i => i.printTechnology === 'dropship'));
+    const isCat = t => t === 'dropship' || t === 'digital';
+    const onlyDropship = isCat(state.printTechnology) || (hasCart && state.cart.every(i => isCat(i.printTechnology)));
     bRate.style.display = onlyDropship ? 'none' : '';
     bRate.textContent = 'Effective print rate: ₹' + effectiveRate + ' / sq in';
   }

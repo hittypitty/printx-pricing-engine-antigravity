@@ -17,7 +17,7 @@ import {
   calculateUVDTFA3EquivalentSheets,
 } from './deliveryEngine.js';
 import { generateQuote } from './quoteGenerator.js';
-import { lineTotal, describeOptions } from './dropshipEngine.js';
+import { lineTotal, describeOptions, isCatalogTech } from './dropshipEngine.js';
 import {
   getPrintableWidthFor,
   getImageWidthLimitFor,
@@ -244,9 +244,9 @@ export function calculateCart(cart, deliveryMethod, courierFilter, selectedPartn
     .reduce((sum, item) => sum + (item.totalMeters || 0), 0);
   const fabricWeight = totalRunningMeters > 0 ? getFabricWeight(totalRunningMeters) : 0;
 
-  // 3. Dropship parcels (weight is entered per line)
+  // 3. Dropship / Digital parcels (weight is entered per line)
   const dropshipWeight = cart
-    .filter(item => item.printTechnology === 'dropship')
+    .filter(item => isCatalogTech(item.printTechnology))
     .reduce((sum, item) => sum + (Number(item.weight) || 0), 0);
 
   const combinedWeightVal = uvWeight + fabricWeight + dropshipWeight;
@@ -256,7 +256,7 @@ export function calculateCart(cart, deliveryMethod, courierFilter, selectedPartn
 
   // Print breakdown for cart
   const printBreakdown = cart.map(item => {
-    if (item.printTechnology === 'dropship') {
+    if (isCatalogTech(item.printTechnology)) {
       return `${item.variant} × ${item.quantity} (₹${Math.ceil(item.printCost)})`;
     }
     const tech = item.printTechnology === 'uv_dtf' ? 'UV ' : (item.printTechnology === 'sublimation' ? 'Sublimation ' : '');
@@ -688,7 +688,8 @@ function calculateAutoQuote(s, config) {
 // ======================================================================
 
 function calculateDropshipQuote(s, config) {
-  const d = s.dropship || {};
+  const tech = s.printTechnology === 'digital' ? 'digital' : 'dropship';
+  const d = s[tech] || {};
   const { qty, rate, total } = lineTotal(d.variant, d.qty, d.placements, d.addons);
   const weight = Math.max(0, Number(d.weight) || 0);
   const delivery = resolveDelivery(s, 0, qty, weight, config);
@@ -701,7 +702,7 @@ function calculateDropshipQuote(s, config) {
     printCost: total,
     effectiveRate: '0.00',
     rateApplied: rate,
-    methodLabel: 'Dropship',
+    methodLabel: tech === 'digital' ? 'Digital Printing' : 'Dropship',
     printBreakdown: `${d.variant} × ${qty} @ ₹${rate} / pc`,
     conversionCost: 0,
     conversionBreakdown: '',
@@ -808,7 +809,7 @@ export function calculateQuote(inputs, config) {
   }
 
   const s = inputs;
-  if (s.printTechnology === 'dropship') {
+  if (isCatalogTech(s.printTechnology)) {
     return calculateDropshipQuote(s, config);
   }
   const isImageMode = s.inputMode === 'image' && s.images && s.images.length > 0;

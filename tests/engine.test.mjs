@@ -201,3 +201,9 @@ test('Dropship: non-apparel ignores print placements, qty floors at 1', () => {
 
 console.log(`\n${passed} passed, ${failed} failed\n`);
 if (failed > 0) process.exit(1);
+
+test('Digital Printing (Paper): flat ₹250 per sheet, no placements', () => {
+  assert.equal(ds.lineTotal('Spot UV - Paper Sheet (Matt)', 4, {}, []).total, 1000);
+  assert.equal(ds.lineTotal('Gold Foil - Paper Sheet (Matt)', 1, { Front: 'A4' }, ['Puff DTF']).rate, 250);
+  assert.equal(ds.isApparel('Spot UV - Paper Sheet (Matt)'), false);
+});
