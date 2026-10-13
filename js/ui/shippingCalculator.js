@@ -10,6 +10,12 @@ import { calculateAllShipping } from '../modules/deliveryEngine.js';
 const PRESETS = [0.5, 1, 2, 5, 10];
 let mount = null;
 let weight = 1;
+let dims = { l: 0, b: 0, h: 0 };
+const VOL_DIVISOR = 5000;
+
+function volWeight() { return (dims.l * dims.b * dims.h) / VOL_DIVISOR; }
+function countedWeight() { return Math.max(weight, volWeight()); }
+const fmt = n => String(Math.round(n * 100) / 100);
 
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -22,6 +28,11 @@ export function init(container) {
       weight = Math.max(0, Number(e.target.value) || 0);
       refreshResults();
       syncChips();
+    }
+    const k = { 'sc-l': 'l', 'sc-b': 'b', 'sc-h': 'h' }[e.target.id];
+    if (k) {
+      dims[k] = Math.max(0, Number(e.target.value) || 0);
+      refreshResults();
     }
   });
   mount.addEventListener('click', e => {
@@ -61,6 +72,14 @@ function render() {
           <label class="field-label" for="sc-weight">PARCEL WEIGHT (KG)</label>
           <input type="number" class="input-field" id="sc-weight" min="0" step="0.05" value="${weight}" />
         </div>
+        <div class="field-group" style="margin-top: var(--space-md);">
+          <label class="field-label">PARCEL SIZE (CM) — optional, for volumetric weight</label>
+          <div class="sc-dims">
+            <input type="number" class="input-field" id="sc-l" min="0" step="1" placeholder="L" aria-label="Length in cm" />
+            <input type="number" class="input-field" id="sc-b" min="0" step="1" placeholder="B" aria-label="Breadth in cm" />
+            <input type="number" class="input-field" id="sc-h" min="0" step="1" placeholder="H" aria-label="Height in cm" />
+          </div>
+        </div>
         <div class="chip-group sc-chips" style="margin-top: var(--space-md);">
           ${PRESETS.map(w => `<button type="button" class="chip" data-sc="preset" data-value="${w}">${w} kg</button>`).join('')}
           <button type="button" class="chip" data-sc="quote" id="sc-from-quote">Use quote weight</button>
@@ -89,20 +108,29 @@ function refreshQuoteButton() {
 function refreshResults() {
   const box = mount && mount.querySelector('#sc-results');
   if (!box) return;
-  if (!(weight > 0)) {
-    box.innerHTML = '<div class="sc-empty">Enter a parcel weight to see courier charges.</div>';
+  const vol = volWeight();
+  const counted = countedWeight();
+  if (!(counted > 0)) {
+    box.innerHTML = '<div class="sc-empty">Enter a parcel weight (or size) to see courier charges.</div>';
     return;
   }
   const config = getConfig();
   const pack = (config.pricing && config.pricing.PACKAGING_COST) || 0;
-  const rows = calculateAllShipping(0, 1, 'cheapest', weight, config);
+  const rows = calculateAllShipping(0, 1, 'cheapest', counted, config);
   if (!rows.length) {
     box.innerHTML = '<div class="sc-empty">No courier supports this weight. Maximum supported is 20 kg.</div>';
     return;
   }
   const cheapest = Math.min(...rows.map(r => r.shippingCost));
   const fastest = Math.min(...rows.map(r => parseInt(r.eta) || 99));
+  const basis = vol > weight ? 'Volumetric weight is higher' : 'Actual weight is higher';
   box.innerHTML = `
+    <div class="sc-wt">
+      <span>Actual <b>${fmt(weight)} kg</b></span>
+      <span>Volumetric <b>${vol > 0 ? fmt(vol) + ' kg' : '—'}</b></span>
+      <span class="sc-wt-count">Counted <b>${fmt(counted)} kg</b></span>
+    </div>
+    ${vol > 0 ? `<div class="sc-meta">${dims.l}×${dims.b}×${dims.h} cm ÷ 5000 = ${fmt(vol)} kg · ${basis}, so it is charged.</div>` : ''}
     <div class="sc-table" role="table" aria-label="Courier charges">
       <div class="sc-row sc-head" role="row"><span>Courier</span><span>ETA</span><span>Shipping</span><span>Total</span></div>
       ${rows.map(r => `
@@ -116,5 +144,5 @@ function refreshResults() {
           <span class="sc-total">₹${Math.ceil(r.shippingCost + pack)}</span>
         </div>`).join('')}
     </div>
-    <div class="sc-meta">Counted weight ${weight} kg · packaging ₹${pack} included in Total</div>`;
+    <div class="sc-meta">Counted weight ${fmt(counted)} kg · packaging ₹${pack} included in Total</div>`;
 }

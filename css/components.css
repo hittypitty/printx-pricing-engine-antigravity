@@ -791,3 +791,8 @@ input[type="number"] {
 .sc-meta, .sc-note, .sc-empty { font-size: 12px; color: var(--text-muted); margin-top: 10px; }
 .sc-empty { padding: 12px; border: 1px dashed var(--border-color); border-radius: 10px; text-align: center; }
 @media (max-width: 480px) { .sc-row { grid-template-columns: 1.5fr 0.8fr 0.7fr 0.7fr; padding: 10px; font-size: 12px; } }
+
+.sc-dims { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-sm, 8px); }
+.sc-wt { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: var(--space-md, 16px); padding: 10px 12px; border: 1px solid rgba(168,85,247,.35); border-radius: 8px; font-size: .85rem; }
+.sc-wt b { font-weight: 700; }
+.sc-wt-count { margin-left: auto; color: #a855f7; }
