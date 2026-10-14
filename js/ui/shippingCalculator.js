@@ -24,9 +24,14 @@ const fmt = n => String(Math.round(n * 100) / 100);
 
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-export function init(container) {
+export function init(container, prefill) {
   if (!container) return;
   mount = container;
+  if (prefill) {
+    if (prefill.weight) weight = prefill.weight;
+    dims = { l: prefill.l || 0, b: prefill.b || 0, h: prefill.h || 0 };
+    open = true;
+  }
   render();
   mount.addEventListener('input', e => {
     if (e.target.id === 'sc-weight') {
@@ -133,9 +138,9 @@ function render() {
             <i class="cf f-front"></i><i class="cf f-back"></i><i class="cf f-right"></i><i class="cf f-left"></i><i class="cf f-top"></i><i class="cf f-bottom"></i>
           </div></div>
           <div class="sc-dims">
-            <label class="sc-dim"><span>L</span><input type="number" class="input-field" id="sc-l" min="0" step="1" placeholder="L" aria-label="Length in cm" /></label>
-            <label class="sc-dim"><span>B</span><input type="number" class="input-field" id="sc-b" min="0" step="1" placeholder="B" aria-label="Breadth in cm" /></label>
-            <label class="sc-dim"><span>H</span><input type="number" class="input-field" id="sc-h" min="0" step="1" placeholder="H" aria-label="Height in cm" /></label>
+            <label class="sc-dim"><span>L</span><input type="number" class="input-field" id="sc-l" min="0" step="1" placeholder="L" value="${dims.l || ''}" aria-label="Length in cm" /></label>
+            <label class="sc-dim"><span>B</span><input type="number" class="input-field" id="sc-b" min="0" step="1" placeholder="B" value="${dims.b || ''}" aria-label="Breadth in cm" /></label>
+            <label class="sc-dim"><span>H</span><input type="number" class="input-field" id="sc-h" min="0" step="1" placeholder="H" value="${dims.h || ''}" aria-label="Height in cm" /></label>
           </div></div>
         </div>
         <div class="chip-group sc-chips" style="margin-top: var(--space-md);">
