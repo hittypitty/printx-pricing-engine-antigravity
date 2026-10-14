@@ -1,0 +1,153 @@
+/* ========================================
+   Redesign — "Print Proof" theme.
+   Built on printing's own language: CMYK process colours, misregistered
+   hard shadows, an ink-black job ticket for the price. Loaded last.
+   ======================================== */
+
+:root {
+  --ink: #120f22;
+  --ink-2: #1d1935;
+  --paper: #efedf6;
+  --c: #00aeef;   /* cyan */
+  --m: #ec008c;   /* magenta */
+  --y: #ffd100;   /* yellow */
+  --card-accent: var(--c);
+  --font-display: 'Bricolage Grotesque', 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+  --font-family: 'DM Sans', 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+  --line: #e0dcee;
+}
+
+body {
+  background:
+    radial-gradient(circle at 1px 1px, rgba(18, 15, 34, .07) 1px, transparent 1.5px) 0 0 / 18px 18px,
+    var(--paper);
+  background-attachment: fixed;
+}
+
+/* ---------- Header ---------- */
+.app-header { border-bottom: 0; margin-bottom: var(--space-xl); position: relative; }
+.app-header::after {            /* four-colour proof strip */
+  content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 4px; border-radius: 4px;
+  background: linear-gradient(90deg, var(--c) 0 25%, var(--m) 25% 50%, var(--y) 50% 75%, var(--ink) 75% 100%);
+}
+.header-inner { padding-bottom: var(--space-xl); }
+.header-subtitle { font-family: var(--font-display); font-size: 20px !important; letter-spacing: -.01em !important; color: var(--ink) !important; font-weight: 800 !important; text-transform: none !important; }
+.header-separator { background: var(--ink); width: 2px; opacity: .15; }
+.btn-refresh { border-color: var(--ink); color: var(--ink); border-radius: 12px; box-shadow: 3px 3px 0 var(--ink); }
+.btn-refresh:hover { background: var(--y); color: var(--ink); border-color: var(--ink); transform: translate(-2px, -2px); box-shadow: 5px 5px 0 var(--ink); }
+.btn-whatsapp { border-radius: 12px; box-shadow: 3px 3px 0 var(--ink); border: 1.5px solid var(--ink); }
+.btn-whatsapp:hover { transform: translate(-2px, -2px); box-shadow: 5px 5px 0 var(--ink); }
+
+/* ---------- Cards: white proof sheets with misregistered shadow ---------- */
+#app-inputs > .card:nth-of-type(4n+1), #app-inputs > #dropship-mount .card { --card-accent: var(--c); }
+#app-inputs > .card:nth-of-type(4n+2) { --card-accent: var(--m); }
+#app-inputs > .card:nth-of-type(4n+3) { --card-accent: var(--y); }
+#app-inputs > .card:nth-of-type(4n) { --card-accent: var(--ink); }
+#app-quote .card { --card-accent: var(--m); }
+#shipcalc-mount .card { --card-accent: var(--y); }
+
+.card {
+  background: #fff; border: 1.5px solid var(--ink); border-radius: 18px;
+  box-shadow: 4px 4px 0 var(--card-accent);
+  transition: transform .25s var(--ease-out), box-shadow .25s var(--ease-out);
+}
+.card::before { display: none; }
+.card:hover { transform: translate(-3px, -3px); box-shadow: 7px 7px 0 var(--card-accent); }
+
+.card-header { background: #fff; border-bottom: 1.5px dashed #cfc9e6; padding: 16px 22px; position: relative; }
+.card-title { font-family: var(--font-display); font-weight: 800; font-size: 18px; letter-spacing: -.02em; }
+.card-icon, .card:nth-of-type(3n+2) .card-icon, .card:nth-of-type(3n) .card-icon { background: var(--ink); stroke: #fff; }
+.card:hover .card-icon { transform: rotate(-10deg) scale(1.08); background: var(--card-accent); }
+#app-inputs > .card:nth-of-type(4n+3):hover .card-icon { stroke: var(--ink); }
+
+.field-label { color: var(--ink-soft); font-weight: 700; font-size: 11px; letter-spacing: .06em; }
+
+/* ---------- Inputs ---------- */
+.input-field, .number-input-group, .quote-textarea { background: #f6f4fc; border: 1.5px solid #d9d4ec; border-radius: 12px; }
+.input-field:hover, .number-input-group:hover { border-color: var(--ink); }
+.input-field:focus, .number-input-group:focus-within, .quote-textarea:focus { border-color: var(--ink); box-shadow: 3px 3px 0 var(--c); background: #fff; }
+
+/* ---------- Choice buttons: ink when selected ---------- */
+.btn-select, .chip { background: #f6f4fc; color: var(--ink); border: 1.5px solid #d9d4ec; border-radius: 12px; font-weight: 700; }
+.btn-select:hover:not(.active), .chip:hover:not(.active) { background: #fff; color: var(--ink); border-color: var(--ink); transform: translate(-1px, -1px); box-shadow: 3px 3px 0 var(--m); }
+.btn-select.active, .chip.active {
+  background: var(--ink); color: #fff; border-color: var(--ink); box-shadow: 3px 3px 0 var(--m); animation: pop .3s var(--ease-spring);
+}
+.btn-select.active:hover { background: var(--ink); transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--m); }
+
+/* ---------- Primary action stays brand gradient ---------- */
+.btn-primary, .btn-success { border: 1.5px solid var(--ink); border-radius: 14px; box-shadow: 4px 4px 0 var(--ink); }
+.btn-primary:hover, .btn-success:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 var(--ink); }
+.btn-primary:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--ink); }
+
+/* ---------- The price ticket (Decision & Calculation) ---------- */
+#app-outputs .card { background: var(--ink); border-color: var(--ink); box-shadow: 5px 5px 0 var(--m); color: #fff; }
+#app-outputs .card:hover { box-shadow: 8px 8px 0 var(--m); }
+#app-outputs .card-header { background: transparent; border-bottom: 1.5px dashed rgba(255, 255, 255, .22); }
+#app-outputs .card-title { color: #fff; }
+#app-outputs .card-icon { background: var(--m); stroke: #fff; }
+#app-outputs .card-body { position: relative; }
+#app-outputs .card-body::before {   /* registration mark */
+  content: ''; position: absolute; right: 18px; top: 14px; width: 18px; height: 18px; border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, .35);
+  background: linear-gradient(rgba(255,255,255,.35), rgba(255,255,255,.35)) center / 1.5px 26px no-repeat, linear-gradient(rgba(255,255,255,.35), rgba(255,255,255,.35)) center / 26px 1.5px no-repeat;
+  opacity: .7;
+}
+#app-outputs .kpi-block { background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .14); border-radius: 14px; }
+#app-outputs .kpi-block:hover { background: rgba(255, 255, 255, .11); border-color: var(--y); box-shadow: none; transform: translateY(-3px); }
+#app-outputs .kpi-label { color: rgba(255, 255, 255, .62); font-weight: 600; }
+#app-outputs .kpi-value { color: #fff !important; font-family: var(--font-display); }
+#app-outputs #kpi-print-cost { color: var(--y) !important; }
+#app-outputs .kpi-sub { color: rgba(255, 255, 255, .5); }
+#app-outputs .kpi-delivery .kpi-label, #app-outputs .kpi-delivery .kpi-value, #app-outputs .kpi-delivery .kpi-sub { color: #fff !important; }
+#app-outputs .kpi-delivery .kpi-label { color: rgba(255,255,255,.62) !important; }
+#app-outputs .kpi-delivery .kpi-sub { color: rgba(255,255,255,.5) !important; }
+#app-outputs [style*="height: 1px"] { background: rgba(255, 255, 255, .18) !important; background-image: none !important; }
+#app-outputs .breakdown-title { color: rgba(255, 255, 255, .7) !important; }
+#app-outputs .breakdown-badge { background: rgba(255, 255, 255, .09) !important; color: #fff !important; border: 1px dashed rgba(255, 255, 255, .3); font-family: var(--font-mono); }
+#app-outputs #breakdown-effective-rate { color: rgba(255, 255, 255, .5) !important; }
+#app-outputs .final-total-label { color: rgba(255, 255, 255, .65); font-weight: 700; }
+#app-outputs .final-total-value {
+  font-family: var(--font-display); font-size: 56px; line-height: 1; letter-spacing: -.04em; font-weight: 800;
+  background: linear-gradient(90deg, var(--y), #ff8a3d 55%, var(--m)); -webkit-background-clip: text; background-clip: text; color: transparent !important;
+}
+
+/* ---------- Quote & calculator: keep their layouts, restyle edges ---------- */
+.quote-tabs { background: #ece9f7; border: 1.5px solid var(--ink); }
+.quote-tab.active { background: var(--ink); color: #fff; box-shadow: none; }
+.quote-chat { border: 1.5px solid var(--ink); }
+.quote-wa { border: 1.5px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); }
+.quote-wa:hover { transform: translate(-2px, -2px); box-shadow: 5px 5px 0 var(--ink); }
+
+.sc-toggle { background: #fff; }
+.sc-toggle:hover { background: #fffbe0; }
+.sc-chevron, .sc-toggle:hover .sc-chevron { background: var(--ink); color: #fff; }
+.sc-acc { border: 1.5px solid #cfc9e6; border-radius: 14px; }
+.sc-acc:hover, .sc-acc.open { border-color: var(--ink); box-shadow: none; }
+.sc-acc-head:hover { background: #faf8ff; }
+.sc-acc-sum { background: var(--y); color: var(--ink); }
+.sc-wt { background: #fff; border-color: var(--ink); }
+.sc-total { color: var(--ink); }
+.sc-head { background: #f1eefa; }
+.sc-bar.win .sc-bar-track i { background: linear-gradient(90deg, var(--c), var(--m)); box-shadow: none; }
+.sc-bar-top em { background: var(--ink); }
+.sc-sort.active { background: var(--ink); }
+.sc-dl-sum { background: var(--ink) !important; }
+.sc-cost i, .sc-crow.is-cheap .sc-cost i { background: var(--ink); }
+.sc-crow.is-cheap .sc-cost i { background: linear-gradient(90deg, var(--c), var(--m)); }
+.sc-step { border: 1.5px solid var(--ink); color: var(--ink); box-shadow: 2px 2px 0 var(--ink); }
+.sc-step:hover { background: var(--y); color: var(--ink); transform: translate(-1px, -1px); box-shadow: 3px 3px 0 var(--ink); }
+
+/* ---------- Partner / cart rows ---------- */
+.partner-card, .cart-item { border: 1.5px solid #d9d4ec; background: #fff; }
+.partner-card:hover, .cart-item:hover { border-color: var(--ink); box-shadow: 3px 3px 0 var(--c); background: #fff; transform: translate(-1px, -1px); }
+
+/* ---------- Page load: proof sheets land one after another ---------- */
+body.intro .card { animation: sheet .6s var(--ease-out) both; }
+@keyframes sheet { from { opacity: 0; transform: translate(-10px, 14px) rotate(-.6deg); } to { opacity: 1; transform: none; } }
+
+@media (max-width: 768px) {
+  .card { box-shadow: 3px 3px 0 var(--card-accent); }
+  #app-outputs .final-total-value { font-size: 44px; }
+}
+@media (hover: none) { .card:hover { transform: none; box-shadow: 4px 4px 0 var(--card-accent); } }
