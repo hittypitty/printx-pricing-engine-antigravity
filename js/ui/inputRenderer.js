@@ -333,7 +333,6 @@ function buildHTML(state) {
       </div>
     </div>
 
-    <div id="shipcalc-mount"></div>
   `;
 }
 
