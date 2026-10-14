@@ -19,6 +19,8 @@ document.addEventListener('DOMContentLoaded', () => {
   initShipCalc(document.getElementById('shipcalc-mount'));
   initOutput(document.getElementById('app-outputs'));
   initQuote(document.getElementById('app-quote'));
+  document.body.classList.add('intro');
+  setTimeout(() => document.body.classList.remove('intro'), 1800);
 
   // Run initial calculation with default state
   recalculate();

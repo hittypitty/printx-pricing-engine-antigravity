@@ -10,6 +10,7 @@ import { calculateAllShipping } from '../modules/deliveryEngine.js';
 const PRESETS = [0.5, 1, 2, 5, 10];
 let mount = null;
 let weight = 1;
+let open = false;
 let dims = { l: 0, b: 0, h: 0 };
 const VOL_DIVISOR = 5000;
 
@@ -39,6 +40,12 @@ export function init(container) {
     const b = e.target.closest('[data-sc]');
     if (!b) return;
     if (b.dataset.sc === 'preset') setWeight(Number(b.dataset.value));
+    if (b.dataset.sc === 'toggle') {
+      open = !open;
+      const card = mount.querySelector('.sc-card');
+      card.classList.toggle('open', open);
+      b.setAttribute('aria-expanded', String(open));
+    }
     if (b.dataset.sc === 'refresh') {
       dims = { l: 0, b: 0, h: 0 };
       ['sc-l', 'sc-b', 'sc-h'].forEach(id => { const i = mount.querySelector('#' + id); if (i) i.value = ''; });
@@ -60,8 +67,8 @@ function setWeight(w) {
 
 function render() {
   mount.innerHTML = `
-    <div class="card">
-      <div class="card-header">
+    <div class="card sc-card ${open ? 'open' : ''}">
+      <button type="button" class="card-header sc-toggle" data-sc="toggle" aria-expanded="${open}" aria-controls="sc-panel">
         <h2 class="card-title">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="card-icon">
             <rect x="4" y="2" width="16" height="20" rx="2"></rect>
@@ -71,9 +78,11 @@ function render() {
           </svg>
           Shipping Calculator
         </h2>
-        <button type="button" class="chip sc-refresh" data-sc="refresh" title="Clear weight and size">↻ Refresh</button>
-      </div>
+        <svg class="sc-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+      </button>
+      <div class="sc-collapse" id="sc-panel"><div class="sc-collapse-inner">
       <div class="card-body">
+        <div class="sc-toolbar"><span class="sc-hint">Enter weight and size. The higher of actual and volumetric weight is charged.</span><button type="button" class="chip sc-refresh" data-sc="refresh" title="Clear weight and size">↻ Refresh</button></div>
         <div class="field-group">
           <label class="field-label" for="sc-weight">PARCEL WEIGHT (KG)</label>
           <input type="number" class="input-field" id="sc-weight" min="0" step="0.05" value="${weight}" />
@@ -93,6 +102,7 @@ function render() {
         <div id="sc-results" class="sc-results"></div>
         <div class="sc-note">Estimate only. Includes the standard packaging charge. Final charges may vary after packing.</div>
       </div>
+      </div></div>
     </div>`;
   refreshResults();
   syncChips();
