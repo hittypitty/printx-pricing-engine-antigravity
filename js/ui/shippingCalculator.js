@@ -11,6 +11,8 @@ const PRESETS = [0.5, 1, 2, 5, 10];
 let mount = null;
 let weight = 1;
 let open = false;
+const secOpen = { parcel: true, weight: true, courier: true };
+const rowOpen = new Set();
 let dims = { l: 0, b: 0, h: 0 };
 const VOL_DIVISOR = 5000;
 
@@ -46,6 +48,18 @@ export function init(container) {
       card.classList.toggle('open', open);
       b.setAttribute('aria-expanded', String(open));
     }
+    if (b.dataset.sc === 'sec') {
+      const k = b.dataset.key;
+      secOpen[k] = !secOpen[k];
+      b.closest('.sc-acc').classList.toggle('open', secOpen[k]);
+      b.setAttribute('aria-expanded', String(secOpen[k]));
+    }
+    if (b.dataset.sc === 'row') {
+      const k = b.dataset.key;
+      if (rowOpen.has(k)) rowOpen.delete(k); else rowOpen.add(k);
+      b.closest('.sc-crow').classList.toggle('open', rowOpen.has(k));
+      b.setAttribute('aria-expanded', String(rowOpen.has(k)));
+    }
     if (b.dataset.sc === 'refresh') {
       dims = { l: 0, b: 0, h: 0 };
       ['sc-l', 'sc-b', 'sc-h'].forEach(id => { const i = mount.querySelector('#' + id); if (i) i.value = ''; });
@@ -55,6 +69,19 @@ export function init(container) {
   });
   subscribeConfig(() => refreshResults());
   subscribe(() => refreshQuoteButton());
+}
+
+function acc(key, title, summary, body) {
+  const o = secOpen[key];
+  return `
+    <section class="sc-acc ${o ? 'open' : ''}" data-key="${key}">
+      <button type="button" class="sc-acc-head" data-sc="sec" data-key="${key}" aria-expanded="${o}">
+        <span class="sc-acc-title">${title}</span>
+        <span class="sc-acc-sum">${summary}</span>
+        <svg class="sc-acc-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+      </button>
+      <div class="sc-acc-body"><div class="sc-acc-inner">${body}</div></div>
+    </section>`;
 }
 
 function setWeight(w) {
@@ -83,6 +110,7 @@ function render() {
       <div class="sc-collapse" id="sc-panel"><div class="sc-collapse-inner">
       <div class="card-body">
         <div class="sc-toolbar"><span class="sc-hint">Enter weight and size. The higher of actual and volumetric weight is charged.</span><button type="button" class="chip sc-refresh" data-sc="refresh" title="Clear weight and size">↻ Refresh</button></div>
+        ${acc('parcel', 'Parcel details', '<span id="sc-sum-parcel"></span>', `
         <div class="field-group">
           <label class="field-label" for="sc-weight">PARCEL WEIGHT (KG)</label>
           <input type="number" class="input-field" id="sc-weight" min="0" step="0.05" value="${weight}" />
@@ -99,6 +127,7 @@ function render() {
           ${PRESETS.map(w => `<button type="button" class="chip" data-sc="preset" data-value="${w}">${w} kg</button>`).join('')}
           <button type="button" class="chip" data-sc="quote" id="sc-from-quote">Use quote weight</button>
         </div>
+        `)}
         <div id="sc-results" class="sc-results"></div>
         <div class="sc-note">Estimate only. Includes the standard packaging charge. Final charges may vary after packing.</div>
       </div>
@@ -140,25 +169,49 @@ function refreshResults() {
   const cheapest = Math.min(...rows.map(r => r.shippingCost));
   const fastest = Math.min(...rows.map(r => parseInt(r.eta) || 99));
   const basis = vol > weight ? 'Volumetric weight is higher' : 'Actual weight is higher';
-  box.innerHTML = `
+  const sum = box.ownerDocument.getElementById('sc-sum-parcel');
+  if (sum) sum.textContent = `${fmt(weight)} kg${vol > 0 ? ` · ${dims.l}×${dims.b}×${dims.h} cm` : ''}`;
+  const best = Math.ceil(cheapest + pack);
+  const weightBody = `
     <div class="sc-wt">
       <span>Actual <b>${fmt(weight)} kg</b></span>
       <span>Volumetric <b>${vol > 0 ? fmt(vol) + ' kg' : '—'}</b></span>
       <span class="sc-wt-count">Counted <b>${fmt(counted)} kg</b></span>
     </div>
-    ${vol > 0 ? `<div class="sc-meta">${dims.l}×${dims.b}×${dims.h} cm ÷ 5000 = ${fmt(vol)} kg · ${basis}, so it is charged.</div>` : ''}
+    <div class="sc-meta">${vol > 0 ? `${dims.l} × ${dims.b} × ${dims.h} cm ÷ 5000 = ${fmt(vol)} kg · ${basis}, so it is charged.` : 'Add L, B and H to check volumetric weight. Actual weight is charged until then.'}</div>`;
+  const courierBody = `
     <div class="sc-table" role="table" aria-label="Courier charges">
       <div class="sc-row sc-head" role="row"><span>Courier</span><span>ETA</span><span>Shipping</span><span>Total</span></div>
-      ${rows.map(r => `
-        <div class="sc-row" role="row">
-          <span class="sc-name">${esc(r.partnerName)}
-            ${r.shippingCost === cheapest ? '<em class="sc-badge sc-cheap">Cheapest</em>' : ''}
-            ${(parseInt(r.eta) || 99) === fastest ? '<em class="sc-badge sc-fast">Fastest</em>' : ''}
-          </span>
-          <span>${esc(r.eta)}</span>
-          <span>₹${Math.ceil(r.shippingCost)}</span>
-          <span class="sc-total">₹${Math.ceil(r.shippingCost + pack)}</span>
-        </div>`).join('')}
+      ${rows.map(r => {
+        const k = r.partnerKey || r.partnerName;
+        const o = rowOpen.has(k);
+        const tot = Math.ceil(r.shippingCost + pack);
+        return `
+        <div class="sc-crow ${o ? 'open' : ''}">
+          <button type="button" class="sc-row sc-rowbtn" data-sc="row" data-key="${esc(k)}" aria-expanded="${o}">
+            <span class="sc-name"><svg class="sc-row-chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"></polyline></svg>${esc(r.partnerName)}
+              ${r.shippingCost === cheapest ? '<em class="sc-badge sc-cheap">Cheapest</em>' : ''}
+              ${(parseInt(r.eta) || 99) === fastest ? '<em class="sc-badge sc-fast">Fastest</em>' : ''}
+            </span>
+            <span>${esc(r.eta)}</span>
+            <span>₹${Math.ceil(r.shippingCost)}</span>
+            <span class="sc-total">₹${tot}</span>
+          </button>
+          <div class="sc-detail"><div class="sc-detail-inner">
+            <dl>
+              <div><dt>Courier charge</dt><dd>₹${Math.ceil(r.shippingCost)}</dd></div>
+              <div><dt>Packaging</dt><dd>₹${pack}</dd></div>
+              <div><dt>Weight charged</dt><dd>${fmt(counted)} kg</dd></div>
+              <div><dt>Delivery time</dt><dd>${esc(r.eta)}</dd></div>
+              <div class="sc-dl-wide"><dt>Rate used</dt><dd>${esc(r.breakdown || r.partnerName)}</dd></div>
+              <div class="sc-dl-sum"><dt>Total</dt><dd>₹${tot}</dd></div>
+            </dl>
+          </div></div>
+        </div>`;
+      }).join('')}
     </div>
-    <div class="sc-meta">Counted weight ${fmt(counted)} kg · packaging ₹${pack} included in Total</div>`;
+    <div class="sc-meta">Packaging ₹${pack} is included in Total. Tap a courier to see how its charge is made.</div>`;
+  box.innerHTML =
+    acc('weight', 'Weight check', `Counted ${fmt(counted)} kg`, weightBody) +
+    acc('courier', 'Courier charges', `From ₹${best}`, courierBody);
 }
