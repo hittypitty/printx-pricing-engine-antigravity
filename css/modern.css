@@ -324,3 +324,32 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgba(124, 58, 237, .4
   .sc-name { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 4px; }
   .sc-row-chev { margin-right: 0; }
 }
+
+/* ---------- Client quote: chat preview ---------- */
+.quote-tabs { display: flex; align-items: center; gap: 4px; padding: 4px; width: fit-content; background: var(--bg-input); border-radius: 999px; margin-bottom: 12px; }
+.quote-tab { border: 0; background: transparent; color: var(--ink-soft); font: inherit; font-size: 13px; font-weight: 700; padding: 7px 16px; border-radius: 999px; cursor: pointer; transition: background .25s var(--ease-out), color .2s ease, box-shadow .25s ease; }
+.quote-tab:hover:not(.active) { color: var(--violet); }
+.quote-tab.active { background: #fff; color: var(--violet); box-shadow: 0 4px 12px -6px rgba(124, 58, 237, .5); }
+.quote-count { margin-left: 10px; margin-right: 10px; font-size: 11px; color: var(--ink-mute); font-weight: 600; }
+.quote-chat {
+  border-radius: 16px; padding: 18px 14px; min-height: 200px;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(255,255,255,.5) 0 2px, transparent 3px) 0 0 / 28px 28px,
+    linear-gradient(160deg, #e7f6ec, #dff1e6 55%, #e9f2fb);
+  border: 1px solid #d3e8da;
+}
+.quote-chat[hidden], .quote-textarea[hidden] { display: none; }
+.quote-bubble {
+  position: relative; max-width: 92%; margin-left: auto; padding: 10px 12px 18px;
+  background: #dcf8c6; color: #1b2a22; border-radius: 14px 14px 4px 14px;
+  font-size: 14px; line-height: 1.55; word-break: break-word;
+  box-shadow: 0 1px 1px rgba(0,0,0,.12), 0 10px 22px -14px rgba(20, 90, 50, .5);
+  animation: bubble-in .45s var(--ease-spring);
+  transition: transform .25s var(--ease-out), box-shadow .25s ease;
+}
+.quote-bubble:hover { transform: translateY(-2px); box-shadow: 0 1px 1px rgba(0,0,0,.12), 0 16px 28px -14px rgba(20, 90, 50, .6); }
+.quote-bubble::after { content: ''; position: absolute; right: -6px; bottom: 0; width: 12px; height: 14px; background: #dcf8c6; clip-path: polygon(0 0, 0 100%, 100% 100%); }
+.quote-meta { position: absolute; right: 10px; bottom: 3px; display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; color: #6b8576; }
+@keyframes bubble-in { from { opacity: 0; transform: translateY(10px) scale(.96); } to { opacity: 1; transform: none; } }
+.quote-wa { margin-top: 12px; width: 100%; border: 0; border-radius: 12px; padding: 11px; font: inherit; font-weight: 700; font-size: 14px; color: #fff; cursor: pointer; background: linear-gradient(135deg, #25d366, #128c7e); transition: transform .25s var(--ease-spring), box-shadow .3s ease; }
+.quote-wa:hover { transform: translateY(-2px); box-shadow: 0 14px 26px -12px rgba(18, 140, 126, .7); }
