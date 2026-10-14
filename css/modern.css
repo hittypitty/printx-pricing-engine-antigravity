@@ -353,3 +353,71 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgba(124, 58, 237, .4
 @keyframes bubble-in { from { opacity: 0; transform: translateY(10px) scale(.96); } to { opacity: 1; transform: none; } }
 .quote-wa { margin-top: 12px; width: 100%; border: 0; border-radius: 12px; padding: 11px; font: inherit; font-weight: 700; font-size: 14px; color: #fff; cursor: pointer; background: linear-gradient(135deg, #25d366, #128c7e); transition: transform .25s var(--ease-spring), box-shadow .3s ease; }
 .quote-wa:hover { transform: translateY(-2px); box-shadow: 0 14px 26px -12px rgba(18, 140, 126, .7); }
+
+
+/* ========================================
+   Calm pass — official, simple, minimal motion.
+   Brand colours (purple / pink / orange) stay; decoration and movement go.
+   ======================================== */
+:root {
+  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --shadow-card: 0 1px 3px rgba(23, 19, 43, .06);
+  --bg-input: #f4f5f7;
+  --line: #e8eaee;
+  --border-color: #e8eaee;
+  --violet-soft: #f4effe;
+}
+body { background: #f0f2f5; }
+
+/* no lifting, glow or gradient edges */
+.card, .card:hover { transform: none; box-shadow: var(--shadow-card); }
+.card::before { display: none; }
+.card:hover { border-color: #d8dbe3; }
+.card:hover .card-icon, .card-icon { transform: none; }
+.card-header { background: #f8f9fa; }
+.card-title { font-weight: 700; letter-spacing: 0; }
+.card-icon, .card:nth-of-type(3n+2) .card-icon, .card:nth-of-type(3n) .card-icon { background: transparent; padding: 0; width: 20px; height: 20px; }
+
+/* quiet hover: colour only */
+.btn-select:hover:not(.active), .chip:hover:not(.active) { transform: none; box-shadow: none; background: #ece8fb; color: var(--violet); border-color: transparent; }
+.btn-select:active, .chip:active { transform: none; }
+.btn-select.active, .chip.active { animation: none; box-shadow: none; background: var(--gradient-primary); background-size: 100% 100%; }
+.btn-select.active:hover { transform: none; }
+.btn-primary, .btn-success { transition: filter .15s ease; background-size: 100% 100%; }
+.btn-primary::after, .btn-success::after { display: none; }
+.btn-primary:hover, .btn-success:hover { transform: none; box-shadow: none; filter: brightness(.95); }
+.btn-primary:active { transform: none; }
+.btn-whatsapp:hover { transform: none; box-shadow: none; filter: brightness(.95); }
+.btn-refresh:hover, .quote-wa:hover, .sc-step:hover { transform: none; box-shadow: none; }
+.header-brand:hover .header-logo { transform: none; }
+
+/* KPI + results */
+.kpi-block, .kpi-block:nth-child(2), .kpi-block:nth-child(3), .kpi-delivery { background: #fff; }
+.kpi-delivery { background: #fff7ed; }
+.kpi-block:hover { transform: none; box-shadow: none; border-color: var(--line); }
+.final-total-value { background: none; -webkit-background-clip: initial; background-clip: initial; color: var(--success) !important; letter-spacing: -.02em; }
+.final-total:hover .final-total-value { transform: none; }
+.partner-card:hover, .cart-item:hover { transform: none; box-shadow: none; }
+
+/* calculator: keep dropdowns, drop effects */
+.sc-acc:hover { box-shadow: none; }
+.sc-row:not(.sc-head):hover { padding-left: 14px; }
+.sc-step:active { transform: none; }
+.sc-cube { animation: none; }
+.cf { transition-duration: .25s; }
+.sc-bar.win .sc-bar-track i { box-shadow: none; }
+.sc-bar-top em, .sc-chevron, .sc-acc-chev, .sc-row-chev { animation: none; }
+.sc-chevron, .sc-acc-chev, .sc-row-chev { transition: transform .2s ease, background .15s ease, color .15s ease; }
+.sc-collapse { transition-duration: .25s; }
+.sc-acc-body, .sc-detail { transition-duration: .22s; }
+.sc-acc-inner { transition-duration: .2s; }
+.sc-bar-track i, .sc-cost i { transition-duration: .3s; }
+.sc-sort:hover, .sc-copy:hover { transform: none; }
+.sc-detail dl > div { border-radius: 8px; }
+
+/* quote */
+.quote-bubble { animation: none; }
+.quote-bubble:hover { transform: none; }
+
+/* page load: none */
+body.intro .app-header, body.intro .card { animation: none; }
