@@ -13,6 +13,8 @@ let weight = 1;
 let open = false;
 const secOpen = { parcel: true, weight: true, courier: true };
 const rowOpen = new Set();
+let sortBy = 'default';
+const lastPct = {};
 let dims = { l: 0, b: 0, h: 0 };
 const VOL_DIVISOR = 5000;
 
@@ -35,6 +37,7 @@ export function init(container) {
     const k = { 'sc-l': 'l', 'sc-b': 'b', 'sc-h': 'h' }[e.target.id];
     if (k) {
       dims[k] = Math.max(0, Number(e.target.value) || 0);
+      updateCube();
       refreshResults();
     }
   });
@@ -48,6 +51,9 @@ export function init(container) {
       card.classList.toggle('open', open);
       b.setAttribute('aria-expanded', String(open));
     }
+    if (b.dataset.sc === 'step') setWeight(Math.max(0, Math.round((weight + Number(b.dataset.dir) * 0.5) * 100) / 100));
+    if (b.dataset.sc === 'sort') { sortBy = b.dataset.value; refreshResults(); }
+    if (b.dataset.sc === 'copy') copyRates(b);
     if (b.dataset.sc === 'sec') {
       const k = b.dataset.key;
       secOpen[k] = !secOpen[k];
@@ -62,6 +68,7 @@ export function init(container) {
     }
     if (b.dataset.sc === 'refresh') {
       dims = { l: 0, b: 0, h: 0 };
+      updateCube();
       ['sc-l', 'sc-b', 'sc-h'].forEach(id => { const i = mount.querySelector('#' + id); if (i) i.value = ''; });
       setWeight(1);
     }
@@ -113,15 +120,23 @@ function render() {
         ${acc('parcel', 'Parcel details', '<span id="sc-sum-parcel"></span>', `
         <div class="field-group">
           <label class="field-label" for="sc-weight">PARCEL WEIGHT (KG)</label>
-          <input type="number" class="input-field" id="sc-weight" min="0" step="0.05" value="${weight}" />
+          <div class="sc-stepper">
+            <button type="button" class="sc-step" data-sc="step" data-dir="-1" aria-label="Decrease weight">−</button>
+            <input type="number" class="input-field" id="sc-weight" min="0" step="0.05" value="${weight}" />
+            <button type="button" class="sc-step" data-sc="step" data-dir="1" aria-label="Increase weight">+</button>
+          </div>
         </div>
         <div class="field-group" style="margin-top: var(--space-md);">
           <label class="field-label">PARCEL SIZE (CM) — optional, for volumetric weight</label>
+          <div class="sc-size-wrap">
+          <div class="sc-cube-stage" aria-hidden="true"><div class="sc-cube empty" id="sc-cube">
+            <i class="cf f-front"></i><i class="cf f-back"></i><i class="cf f-right"></i><i class="cf f-left"></i><i class="cf f-top"></i><i class="cf f-bottom"></i>
+          </div></div>
           <div class="sc-dims">
-            <input type="number" class="input-field" id="sc-l" min="0" step="1" placeholder="L" aria-label="Length in cm" />
-            <input type="number" class="input-field" id="sc-b" min="0" step="1" placeholder="B" aria-label="Breadth in cm" />
-            <input type="number" class="input-field" id="sc-h" min="0" step="1" placeholder="H" aria-label="Height in cm" />
-          </div>
+            <label class="sc-dim"><span>L</span><input type="number" class="input-field" id="sc-l" min="0" step="1" placeholder="L" aria-label="Length in cm" /></label>
+            <label class="sc-dim"><span>B</span><input type="number" class="input-field" id="sc-b" min="0" step="1" placeholder="B" aria-label="Breadth in cm" /></label>
+            <label class="sc-dim"><span>H</span><input type="number" class="input-field" id="sc-h" min="0" step="1" placeholder="H" aria-label="Height in cm" /></label>
+          </div></div>
         </div>
         <div class="chip-group sc-chips" style="margin-top: var(--space-md);">
           ${PRESETS.map(w => `<button type="button" class="chip" data-sc="preset" data-value="${w}">${w} kg</button>`).join('')}
@@ -136,6 +151,35 @@ function render() {
   refreshResults();
   syncChips();
   refreshQuoteButton();
+  updateCube();
+}
+
+function updateCube() {
+  const cube = mount && mount.querySelector('#sc-cube');
+  if (!cube) return;
+  const has = dims.l > 0 && dims.b > 0 && dims.h > 0;
+  cube.classList.toggle('empty', !has);
+  const L0 = has ? dims.l : 40, B0 = has ? dims.b : 30, H0 = has ? dims.h : 30;
+  const k = 96 / Math.max(L0, B0, H0, 1);
+  const L = Math.max(8, L0 * k), B = Math.max(8, B0 * k), H = Math.max(8, H0 * k);
+  const set = (cls, w, h, t) => { const f = cube.querySelector('.' + cls); f.style.width = w + 'px'; f.style.height = h + 'px'; f.style.transform = 'translate(-50%,-50%) ' + t; };
+  set('f-front', L, H, `translateZ(${B / 2}px)`);
+  set('f-back', L, H, `rotateY(180deg) translateZ(${B / 2}px)`);
+  set('f-right', B, H, `rotateY(90deg) translateZ(${L / 2}px)`);
+  set('f-left', B, H, `rotateY(-90deg) translateZ(${L / 2}px)`);
+  set('f-top', L, B, `rotateX(90deg) translateZ(${H / 2}px)`);
+  set('f-bottom', L, B, `rotateX(-90deg) translateZ(${H / 2}px)`);
+}
+
+function copyRates(btn) {
+  const counted = countedWeight();
+  const config = getConfig();
+  const pack = (config.pricing && config.pricing.PACKAGING_COST) || 0;
+  const rows = calculateAllShipping(0, 1, 'cheapest', counted, config);
+  const lines = rows.map(r => `• ${r.partnerName} (${r.eta}): ₹${Math.ceil(r.shippingCost + pack)}`);
+  const text = `Shipping estimate for ${fmt(counted)} kg parcel (packaging included):\n${lines.join('\n')}`;
+  const done = () => { const o = btn.textContent; btn.textContent = '✓ Copied'; btn.classList.add('done'); setTimeout(() => { btn.textContent = o; btn.classList.remove('done'); }, 1400); };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, done); else done();
 }
 
 function syncChips() {
@@ -172,22 +216,33 @@ function refreshResults() {
   const sum = box.ownerDocument.getElementById('sc-sum-parcel');
   if (sum) sum.textContent = `${fmt(weight)} kg${vol > 0 ? ` · ${dims.l}×${dims.b}×${dims.h} cm` : ''}`;
   const best = Math.ceil(cheapest + pack);
+  const maxW = Math.max(weight, vol, 0.01);
+  const aPct = Math.round((weight / maxW) * 100), vPct = Math.round((vol / maxW) * 100);
+  const volWins = vol > weight;
+  const bar = (id, label, val, pct, win) => {
+    const prev = lastPct[id] == null ? 0 : lastPct[id];
+    lastPct[id] = pct;
+    return `<div class="sc-bar ${win ? 'win' : ''}"><div class="sc-bar-top"><span>${label}</span><b>${val}</b>${win ? '<em>Charged</em>' : ''}</div><div class="sc-bar-track"><i data-pct="${pct}" style="width:${prev}%"></i></div></div>`;
+  };
   const weightBody = `
-    <div class="sc-wt">
-      <span>Actual <b>${fmt(weight)} kg</b></span>
-      <span>Volumetric <b>${vol > 0 ? fmt(vol) + ' kg' : '—'}</b></span>
-      <span class="sc-wt-count">Counted <b>${fmt(counted)} kg</b></span>
-    </div>
-    <div class="sc-meta">${vol > 0 ? `${dims.l} × ${dims.b} × ${dims.h} cm ÷ 5000 = ${fmt(vol)} kg · ${basis}, so it is charged.` : 'Add L, B and H to check volumetric weight. Actual weight is charged until then.'}</div>`;
+    ${bar('a', 'Actual weight', fmt(weight) + ' kg', aPct, !volWins)}
+    ${bar('v', 'Volumetric weight', vol > 0 ? fmt(vol) + ' kg' : '—', vPct, volWins)}
+    <div class="sc-meta">${vol > 0 ? `${dims.l} × ${dims.b} × ${dims.h} cm ÷ 5000 = ${fmt(vol)} kg. ${basis}, so ${fmt(counted)} kg is charged.` : 'Add L, B and H to check volumetric weight. Actual weight is charged until then.'}</div>`;
+  const maxTot = Math.max(...rows.map(r => r.shippingCost + pack));
+  const list = rows.slice();
+  if (sortBy === 'cheap') list.sort((x, y) => x.shippingCost - y.shippingCost);
+  if (sortBy === 'fast') list.sort((x, y) => (parseInt(x.eta) || 99) - (parseInt(y.eta) || 99) || x.shippingCost - y.shippingCost);
+  const sortBtn = (v, t) => `<button type="button" class="sc-sort ${sortBy === v ? 'active' : ''}" data-sc="sort" data-value="${v}">${t}</button>`;
   const courierBody = `
+    <div class="sc-sortbar"><span>Sort</span>${sortBtn('default', 'Default')}${sortBtn('cheap', 'Cheapest')}${sortBtn('fast', 'Fastest')}<button type="button" class="sc-copy" data-sc="copy">Copy rates</button></div>
     <div class="sc-table" role="table" aria-label="Courier charges">
       <div class="sc-row sc-head" role="row"><span>Courier</span><span>ETA</span><span>Shipping</span><span>Total</span></div>
-      ${rows.map(r => {
+      ${list.map(r => {
         const k = r.partnerKey || r.partnerName;
         const o = rowOpen.has(k);
         const tot = Math.ceil(r.shippingCost + pack);
         return `
-        <div class="sc-crow ${o ? 'open' : ''}">
+        <div class="sc-crow ${o ? 'open' : ''} ${r.shippingCost === cheapest ? 'is-cheap' : ''}">
           <button type="button" class="sc-row sc-rowbtn" data-sc="row" data-key="${esc(k)}" aria-expanded="${o}">
             <span class="sc-name"><svg class="sc-row-chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"></polyline></svg>${esc(r.partnerName)}
               ${r.shippingCost === cheapest ? '<em class="sc-badge sc-cheap">Cheapest</em>' : ''}
@@ -196,6 +251,7 @@ function refreshResults() {
             <span>${esc(r.eta)}</span>
             <span>₹${Math.ceil(r.shippingCost)}</span>
             <span class="sc-total">₹${tot}</span>
+            <span class="sc-cost"><i style="width:${Math.max(6, Math.round((r.shippingCost + pack) / maxTot * 100))}%"></i></span>
           </button>
           <div class="sc-detail"><div class="sc-detail-inner">
             <dl>
@@ -214,4 +270,7 @@ function refreshResults() {
   box.innerHTML =
     acc('weight', 'Weight check', `Counted ${fmt(counted)} kg`, weightBody) +
     acc('courier', 'Courier charges', `From ₹${best}`, courierBody);
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    box.querySelectorAll('.sc-bar-track i').forEach(i => { i.style.width = i.dataset.pct + '%'; });
+  }));
 }
