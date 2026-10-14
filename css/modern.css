@@ -425,3 +425,7 @@ body.intro .app-header, body.intro .card { animation: none; }
 /* ERP hand-off banner */
 .erp-banner { display: flex; align-items: center; gap: 10px; margin: 0 0 var(--space-lg); padding: 10px 14px; background: #eef2ff; border: 1px solid #c7d2fe; border-radius: 10px; color: #3730a3; font-size: 13px; }
 .erp-dot { width: 8px; height: 8px; border-radius: 50%; background: #4f46e5; flex: none; }
+
+.ds-auto-hint { margin-top: 6px; font-size: 12px; color: var(--violet); font-weight: 600; }
+.ds-auto-hint[hidden] { display: none; }
+.input-field:disabled { background: #f0eefb; }

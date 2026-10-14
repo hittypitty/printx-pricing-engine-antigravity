@@ -29,7 +29,7 @@ export const FORMATS = {
  * @returns {number} inches
  */
 export function getPrintableWidthFor(tech) {
-  if (tech === 'uv_dtf') return UV_SHEET_WIDTH;
+  if (tech === 'uv_dtf' || tech === 'digital') return UV_SHEET_WIDTH;
   if (tech === 'sublimation') return SUBLIMATION_WIDTH;
   return PRINTABLE_WIDTH;
 }
@@ -39,7 +39,7 @@ export function getPrintableWidthFor(tech) {
  * 22.8" for fabric/sublimation, 11" for UV DTF sheets).
  */
 export function getImageWidthLimitFor(tech) {
-  return tech === 'uv_dtf' ? UV_SHEET_WIDTH : PRINTABLE_WIDTH;
+  return (tech === 'uv_dtf' || tech === 'digital') ? UV_SHEET_WIDTH : PRINTABLE_WIDTH;
 }
 
 /**

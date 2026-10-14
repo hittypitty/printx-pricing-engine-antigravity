@@ -59,6 +59,10 @@ const DEFAULT_ERP_RATES = {
   }
 };
 
+// Digital Printing (paper) sheet used to pack designs — same A4 sheet size as the rest of the tool.
+const DIGITAL_SHEET_W = UV_SHEET_WIDTH;
+const DIGITAL_SHEET_H = 8;
+
 const SIZE_TOLERANCE = 0.1; // inches — allowance when matching a design to a sheet size
 
 /**
@@ -690,7 +694,24 @@ function calculateAutoQuote(s, config) {
 function calculateDropshipQuote(s, config) {
   const tech = s.printTechnology === 'digital' ? 'digital' : 'dropship';
   const d = s[tech] || {};
-  const { qty, rate, total } = lineTotal(d.variant, d.qty, d.placements, d.addons);
+  // Digital Printing: designs (uploaded images / manual sizes) decide how many sheets are needed
+  let autoSheets = null;
+  let autoDesigns = 0;
+  if (tech === 'digital' && (s.inputMode === 'image' || s.inputMode === 'manual-size')) {
+    const items = getAutoItems(s);
+    const touched = (s.images || []).length > 0 || (s.manualSizes || []).some(m => m.width !== '' || m.height !== '');
+    if (touched) {
+      const err = validateAutoInputs(s, items, getPrintableWidthFor('digital'));
+      if (err) return buildInvalid(err, s, config);
+      const packed = calculateUVDTFSheets(items, DIGITAL_SHEET_W, DIGITAL_SHEET_H);
+      if (!Number.isFinite(packed.totalSheets)) {
+        return buildInvalid(`A design doesn't fit on a digital sheet (${DIGITAL_SHEET_W}" × ${DIGITAL_SHEET_H}"). Please reduce the size.`, s, config);
+      }
+      autoSheets = packed.totalSheets;
+      autoDesigns = items.length;
+    }
+  }
+  const { qty, rate, total } = lineTotal(d.variant, autoSheets || d.qty, d.placements, d.addons);
   const weight = Math.max(0, Number(d.weight) || 0);
   const delivery = resolveDelivery(s, 0, qty, weight, config);
   const finalTotal = Math.ceil(total + delivery.packagingCost + delivery.shippingCost);
@@ -715,6 +736,8 @@ function calculateDropshipQuote(s, config) {
     courierFilter: s.courierFilter,
     cart: s.cart,
     dropshipQty: qty,
+    autoSheets,
+    autoDesigns,
     dropshipRate: rate,
     dropshipItem: { variant: d.variant, qty, rate, total, options },
   };

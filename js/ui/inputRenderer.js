@@ -154,9 +154,7 @@ function buildHTML(state) {
       </div>
     </div>
 
-    <div id="dropship-mount" style="display: ${(tech === 'dropship' || tech === 'digital') ? 'block' : 'none'};"></div>
-
-    <div class="card" id="design-card" style="display: ${(tech === 'dropship' || tech === 'digital') ? 'none' : 'block'};">
+    <div class="card" id="design-card" style="display: ${tech === 'dropship' ? 'none' : 'block'};">
       <div class="card-header">
         <h2 class="card-title">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="card-icon">
@@ -188,6 +186,8 @@ function buildHTML(state) {
       </div>
     </div>
     
+    <div id="dropship-mount" style="display: ${(tech === 'dropship' || tech === 'digital') ? 'block' : 'none'};"></div>
+
     <div class="card" id="print-details-card" style="display: ${(tech === 'dropship' || tech === 'digital') ? 'none' : 'block'};">
       <div class="card-header">
         <h2 class="card-title">
@@ -533,7 +533,7 @@ function updateDOM(container, state) {
   const designCard = container.querySelector('#design-card');
   const printDetailsCard = container.querySelector('#print-details-card');
   const dropshipMount = container.querySelector('#dropship-mount');
-  if (designCard) designCard.style.display = isDropshipTech ? 'none' : 'block';
+  if (designCard) designCard.style.display = tech === 'dropship' ? 'none' : 'block';
   if (printDetailsCard) printDetailsCard.style.display = isDropshipTech ? 'none' : 'block';
   if (dropshipMount) dropshipMount.style.display = isDropshipTech ? 'block' : 'none';
 

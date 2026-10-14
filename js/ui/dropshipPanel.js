@@ -28,6 +28,7 @@ export function init(container) {
     const shape = JSON.stringify([state.printTechnology, d.variant, d.placements, d.addons, state.cart ? state.cart.length : 0]);
     if (shape !== lastShape) render(d);
     else refreshSummary(d);
+    syncAuto(state);
   });
 }
 
@@ -88,6 +89,7 @@ function render(d) {
           <div style="flex: 1; min-width: 120px;">
             <label class="field-label">${digital ? 'SHEETS' : 'QUANTITY'}</label>
             <input type="number" class="input-field" min="1" step="1" value="${esc(d.qty)}" data-ds="qty" id="ds-qty" />
+            <div class="ds-auto-hint" id="ds-auto-hint" hidden></div>
           </div>
           <div style="flex: 1; min-width: 110px;">
             <label class="field-label">PARCEL WT (KG)</label>
@@ -100,14 +102,33 @@ function render(d) {
       </div>
     </div>`;
   refreshSummary(d);
+  syncAuto(getState());
   if (hadFocus) { const el = mount.querySelector('#' + hadFocus); if (el) el.focus(); }
+}
+
+// Digital: when designs are entered, the sheet count comes from them (read-only).
+function syncAuto(state) {
+  if (!mount) return;
+  const input = mount.querySelector('#ds-qty');
+  const hint = mount.querySelector('#ds-auto-hint');
+  if (!input) return;
+  const auto = state.printTechnology === 'digital' && state.autoSheets ? state.autoSheets : null;
+  input.disabled = !!auto;
+  if (auto) input.value = String(auto);
+  else if (document.activeElement !== input) input.value = String(current(state).qty);
+  if (hint) {
+    hint.hidden = !auto;
+    if (auto) hint.textContent = `Auto from ${state.autoDesigns} design${state.autoDesigns === 1 ? '' : 's'}. Clear designs to type sheets yourself.`;
+  }
 }
 
 function refreshSummary(d) {
   const box = mount && mount.querySelector('#ds-summary');
   if (!box) return;
   const rows = rateBreakdown(d.variant, d.placements, d.addons);
-  const { qty, rate, total } = lineTotal(d.variant, d.qty, d.placements, d.addons);
+  const st = getState();
+  const eff = st.printTechnology === 'digital' && st.autoSheets ? st.autoSheets : d.qty;
+  const { qty, rate, total } = lineTotal(d.variant, eff, d.placements, d.addons);
   box.innerHTML = `
     ${rows.map(r => `<div class="ds-line"><span>${esc(r.label)}</span><span>${r.amount ? '₹' + r.amount : 'FREE'}</span></div>`).join('')}
     <div class="ds-line ds-rate"><span>Rate per piece</span><span>₹${unitRate(d.variant, d.placements, d.addons)}</span></div>

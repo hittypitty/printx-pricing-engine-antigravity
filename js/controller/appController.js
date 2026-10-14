@@ -309,7 +309,8 @@ function addDropshipToCart() {
   const s = getState();
   const key = s.printTechnology === 'digital' ? 'digital' : 'dropship';
   const d = s[key];
-  const { qty, rate, total } = lineTotal(d.variant, d.qty, d.placements, d.addons);
+  const sheets = key === 'digital' && s.autoSheets ? s.autoSheets : d.qty;
+  const { qty, rate, total } = lineTotal(d.variant, sheets, d.placements, d.addons);
   const cartItem = {
     id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
     printTechnology: key,
@@ -327,13 +328,18 @@ function addDropshipToCart() {
     totalSqInches: 0,
     length: 0,
     pricingWidth: 0,
-    designCount: 0,
+    designCount: key === 'digital' ? (s.autoDesigns || 0) : 0,
     weight: Math.max(0, Number(d.weight) || 0),
   };
+  if (key === 'digital') (s.images || []).forEach(img => { if (img.dataUrl) URL.revokeObjectURL(img.dataUrl); });
   update({
     cart: [...(s.cart || []), cartItem],
     // keep the product, reset the per-order choices
     [key]: { ...d, qty: 1, placements: {}, addons: [] },
+    ...(key === 'digital' ? {
+      images: [], manualSizes: [{ id: 'default-ms-1', width: '', height: '', qty: 1 }],
+      inputMode: 'manual', computedImageLength: 0, computedImageWidth: 0,
+    } : {}),
   });
   recalculate();
 }
