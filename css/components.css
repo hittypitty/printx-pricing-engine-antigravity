@@ -796,3 +796,10 @@ input[type="number"] {
 .sc-wt { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: var(--space-md, 16px); padding: 10px 12px; border: 1px solid rgba(168,85,247,.35); border-radius: 8px; font-size: .85rem; }
 .sc-wt b { font-weight: 700; }
 .sc-wt-count { margin-left: auto; color: #a855f7; }
+
+/* Print Technology: 3 + 2 equal-width layout */
+.tech-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: var(--space-sm, 8px); }
+.tech-grid .btn-select { grid-column: span 2; width: 100%; padding-left: 8px; padding-right: 8px; white-space: nowrap; justify-content: center; text-align: center; }
+.tech-grid .btn-select:nth-child(n+4) { grid-column: span 3; }
+@media (max-width: 480px) { .tech-grid { flex-direction: initial; } .tech-grid .btn-select { font-size: 13px; } }
+.sc-refresh { margin-left: auto; }

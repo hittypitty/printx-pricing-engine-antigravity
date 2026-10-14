@@ -39,6 +39,11 @@ export function init(container) {
     const b = e.target.closest('[data-sc]');
     if (!b) return;
     if (b.dataset.sc === 'preset') setWeight(Number(b.dataset.value));
+    if (b.dataset.sc === 'refresh') {
+      dims = { l: 0, b: 0, h: 0 };
+      ['sc-l', 'sc-b', 'sc-h'].forEach(id => { const i = mount.querySelector('#' + id); if (i) i.value = ''; });
+      setWeight(1);
+    }
     if (b.dataset.sc === 'quote') setWeight(Number(getState().countedWeight) || 0);
   });
   subscribeConfig(() => refreshResults());
@@ -66,6 +71,7 @@ function render() {
           </svg>
           Shipping Calculator
         </h2>
+        <button type="button" class="chip sc-refresh" data-sc="refresh" title="Clear weight and size">↻ Refresh</button>
       </div>
       <div class="card-body">
         <div class="field-group">

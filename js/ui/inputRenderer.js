@@ -136,7 +136,7 @@ function buildHTML(state) {
         </h2>
       </div>
       <div class="card-body">
-        <div class="btn-group" style="margin-bottom: ${isUV ? 'var(--space-md)' : '0'};">
+        <div class="btn-group tech-grid" style="margin-bottom: ${isUV ? 'var(--space-md)' : '0'};">
           <button class="btn btn-select ${isFabric ? 'active' : ''}" data-action="set-tech" data-value="fabric" id="tech-fabric">👕 Fabric DTF</button>
           <button class="btn btn-select ${isUV ? 'active' : ''}" data-action="set-tech" data-value="uv_dtf" id="tech-uv">✨ UV DTF</button>
           <button class="btn btn-select ${isSublimation ? 'active' : ''}" data-action="set-tech" data-value="sublimation" id="tech-sublimation">🔥 Sublimation</button>
