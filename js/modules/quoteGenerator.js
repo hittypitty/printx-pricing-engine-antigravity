@@ -120,7 +120,12 @@ export function generateQuote(state) {
     lines.push(`Here is the quote for your ${printTechnology === 'digital' ? 'digital printing' : 'dropship'} requirement:`);
     lines.push(`🛍️ Product: ${dropshipItem.variant}`);
     if (dropshipItem.options) lines.push(`🖨️ Print: ${dropshipItem.options}`);
-    lines.push(`📦 Quantity: ${dropshipItem.qty} piece(s) × ₹${dropshipItem.rate}`);
+    if (dropshipItem.autoSheets) {
+      lines.push(`📐 Designs: ${dropshipItem.autoPieces} piece(s) packed on ${dropshipItem.autoSheets} sheet(s)`);
+      lines.push(`📦 Sheets: ${dropshipItem.autoSheets} × ₹${dropshipItem.rate}`);
+    } else {
+      lines.push(`📦 Quantity: ${dropshipItem.qty} piece(s) × ₹${dropshipItem.rate}`);
+    }
     lines.push(`💵 Product Cost: ₹${Math.ceil(printCost)}`);
 
     if (deliveryMethod === 'pickup') {

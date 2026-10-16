@@ -15,7 +15,7 @@ function buildHTML(state) {
   const deliveryText = state.deliveryMethod === 'pickup' ? 'Free' : '₹' + Math.ceil(deliveryCost);
   const deliveryKpiSub = state.deliveryMethod === 'pickup' ? 'Office Pickup' : (state.deliveryMethod === 'transport' ? 'Local Transport' : (state.eta ? `ETA: ${state.eta}` : (state.partnerName || '')));
   const effectiveRate = state.effectiveRate || '0.00';
-  const isUVAuto = state.printTechnology === 'uv_dtf' && (state.inputMode === 'image' || state.inputMode === 'manual-size');
+  const isUVAuto = (state.printTechnology === 'uv_dtf' && (state.inputMode === 'image' || state.inputMode === 'manual-size')) || (state.printTechnology === 'digital' && state.autoSheets > 0);
   
   const hasCart = state.cart && state.cart.length > 0;
   const isDropship = state.printTechnology === 'dropship' || state.printTechnology === 'digital';
@@ -24,11 +24,12 @@ function buildHTML(state) {
     : (isUVAuto ? 'Sheets Required' : (state.isSheetFormat ? 'Quantity' : 'Total Running'));
   const metricValueText = hasCart
     ? `${state.cart.length} item(s)`
-    : (isDropship ? `${state.dropshipQty || 0} pcs` : (isUVAuto ? `${state.quantity} sheets` : (state.isSheetFormat ? state.quantity + ' pcs' : state.totalMeters.toFixed(3) + 'm')));
+    : (isUVAuto && state.printTechnology === 'digital' ? `${state.autoSheets} sheets` : isDropship ? `${state.dropshipQty || 0} pcs` : (isUVAuto ? `${state.quantity} sheets` : (state.isSheetFormat ? state.quantity + ' pcs' : state.totalMeters.toFixed(3) + 'm')));
   const isAuto = state.inputMode === 'image' || state.inputMode === 'manual-size';
   const metricSubText = hasCart
     ? `${state.cart.reduce((sum, item) => sum + (item.isSheetFormat ? item.quantity : 1), 0)} items total`
-    : (isDropship
+    : (isUVAuto && state.printTechnology === 'digital' ? `${state.stickersPerSheet || 0} pcs / sheet`
+      : isDropship
       ? '@ ₹' + (state.dropshipRate || 0) + ' / pc'
       : isAuto
         ? (state.printTechnology === 'uv_dtf'
@@ -91,7 +92,7 @@ function buildHTML(state) {
               <div class="breakdown-badge" id="breakdown-conversion-row" style="display: ${showConversion ? 'inline-block' : 'none'}; background: #e0e7ff; color: #4338ca;">Conv: ${state.conversionBreakdown}</div>
               <div class="breakdown-badge breakdown-delivery-badge" id="breakdown-delivery-row" style="display: ${state.deliveryMethod === 'pickup' ? 'none' : 'inline-block'};">Ship: ${state.deliveryMethod === 'transport' ? (state.shippingBreakdown || 'Local Transport') : (state.shippingBreakdown || state.partnerName) + ' + ₹' + state.packagingCost + ' Pkg'}</div>
             </div>
-            <div id="breakdown-effective-rate" style="font-size: 12px; color: var(--text-muted); margin-top: 10px;">Effective print rate: ₹${effectiveRate} / sq in</div>
+            <div id="breakdown-effective-rate" style="font-size: 12px; color: var(--text-muted); margin-top: 10px; display: ${(isDropship && !(state.printTechnology === 'digital' && state.autoSheets > 0)) ? 'none' : ''};">Effective print rate: ₹${effectiveRate} / sq in</div>
           </div>
 
           <div class="final-total" style="text-align: right; border-top: none; padding: 0;">
@@ -110,7 +111,7 @@ function updateDOM(container, state) {
   const deliveryKpiSub = state.deliveryMethod === 'pickup' ? 'Office Pickup' : (state.deliveryMethod === 'transport' ? 'Local Transport' : (state.eta ? `ETA: ${state.eta}` : (state.partnerName || '')));
   const effectiveRate = state.effectiveRate || '0.00';
 
-  const isUVAuto = state.printTechnology === 'uv_dtf' && (state.inputMode === 'image' || state.inputMode === 'manual-size');
+  const isUVAuto = (state.printTechnology === 'uv_dtf' && (state.inputMode === 'image' || state.inputMode === 'manual-size')) || (state.printTechnology === 'digital' && state.autoSheets > 0);
   
   const hasCart = state.cart && state.cart.length > 0;
   const isDropship = state.printTechnology === 'dropship' || state.printTechnology === 'digital';
@@ -127,13 +128,13 @@ function updateDOM(container, state) {
   if (metricValue) {
     metricValue.textContent = hasCart
       ? `${state.cart.length} item(s)`
-      : (isDropship ? `${state.dropshipQty || 0} pcs` : (isUVAuto ? `${state.quantity} sheets` : (state.isSheetFormat ? state.quantity + ' pcs' : state.totalMeters.toFixed(3) + 'm')));
+      : (isUVAuto && state.printTechnology === 'digital' ? `${state.autoSheets} sheets` : isDropship ? `${state.dropshipQty || 0} pcs` : (isUVAuto ? `${state.quantity} sheets` : (state.isSheetFormat ? state.quantity + ' pcs' : state.totalMeters.toFixed(3) + 'm')));
   }
   if (metricSub) {
     const isAuto = state.inputMode === 'image' || state.inputMode === 'manual-size';
     metricSub.textContent = hasCart
       ? `${state.cart.reduce((sum, item) => sum + (item.isSheetFormat ? item.quantity : 1), 0)} items total`
-      : (isDropship ? '@ ₹' + (state.dropshipRate || 0) + ' / pc' : isAuto
+      : (isUVAuto && state.printTechnology === 'digital' ? `${state.stickersPerSheet || 0} pcs / sheet` : isDropship ? '@ ₹' + (state.dropshipRate || 0) + ' / pc' : isAuto
           ? (state.printTechnology === 'uv_dtf'
               ? `${state.stickersPerSheet || 0} pcs / sheet`
               : `${state.stickersPerSheet || 0} pcs / meter`
@@ -185,7 +186,7 @@ function updateDOM(container, state) {
   const bRate = container.querySelector('#breakdown-effective-rate');
   if (bRate) {
     const isCat = t => t === 'dropship' || t === 'digital';
-    const onlyDropship = isCat(state.printTechnology) || (hasCart && state.cart.every(i => isCat(i.printTechnology)));
+    const onlyDropship = (isCat(state.printTechnology) && !(state.printTechnology === 'digital' && state.autoSheets > 0)) || (hasCart && state.cart.every(i => isCat(i.printTechnology)));
     bRate.style.display = onlyDropship ? 'none' : '';
     bRate.textContent = 'Effective print rate: ₹' + effectiveRate + ' / sq in';
   }

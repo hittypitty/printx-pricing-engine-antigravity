@@ -697,6 +697,7 @@ function calculateDropshipQuote(s, config) {
   // Digital Printing: designs (uploaded images / manual sizes) decide how many sheets are needed
   let autoSheets = null;
   let autoDesigns = 0;
+  let autoPieces = 0;
   if (tech === 'digital' && (s.inputMode === 'image' || s.inputMode === 'manual-size')) {
     const items = getAutoItems(s);
     const touched = (s.images || []).length > 0 || (s.manualSizes || []).some(m => m.width !== '' || m.height !== '');
@@ -709,6 +710,7 @@ function calculateDropshipQuote(s, config) {
       }
       autoSheets = packed.totalSheets;
       autoDesigns = items.length;
+      autoPieces = items.reduce((n, it) => n + (Number(it.quantity) || 1), 0);
     }
   }
   const { qty, rate, total } = lineTotal(d.variant, autoSheets || d.qty, d.placements, d.addons);
@@ -738,8 +740,11 @@ function calculateDropshipQuote(s, config) {
     dropshipQty: qty,
     autoSheets,
     autoDesigns,
+    autoPieces,
+    stickersPerSheet: autoSheets ? Math.ceil(autoPieces / autoSheets) : 0,
+    effectiveRate: autoSheets ? (total / (autoSheets * DIGITAL_SHEET_W * DIGITAL_SHEET_H)).toFixed(2) : '0.00',
     dropshipRate: rate,
-    dropshipItem: { variant: d.variant, qty, rate, total, options },
+    dropshipItem: { variant: d.variant, qty, rate, total, options, autoSheets, autoPieces },
   };
 
   return finalize(result, s, config);
