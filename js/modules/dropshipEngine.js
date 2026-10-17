@@ -43,7 +43,7 @@ export const DIGITAL_RATES = {
  */
 export const DIGITAL_OPTIONS = {
   sheetSize: { label: 'SHEET SIZE', choices: [{ v: '11x17', t: '11" × 17"', extra: 0 }, { v: '12x18', t: '12" × 18"', extra: 0 }, { v: '13x19', t: '13" × 19"', extra: 0 }] },
-  lamination: { label: 'LAMINATION', choices: [{ v: 'Gloss', t: 'Gloss', extra: 0 }, { v: 'Matt', t: 'Matt', extra: 0 }, { v: 'Velvet', t: 'Velvet', extra: 0 }] },
+  lamination: { label: 'LAMINATION', choices: [{ v: 'None', t: 'No lamination', extra: 0 }, { v: 'Gloss', t: 'Gloss', extra: 0 }, { v: 'Matt', t: 'Matt', extra: 0 }, { v: 'Velvet', t: 'Velvet', extra: 0 }] },
   gsm: { label: 'SHEET (GSM)', choices: [{ v: '130', t: '130 GSM', extra: 0 }, { v: '300', t: '300 GSM', extra: 0 }, { v: '350', t: '350 GSM', extra: 0 }] },
   sides: { label: 'PRINT', choices: [{ v: 'Single side', t: 'Single side', extra: 0 }, { v: 'Double side', t: 'Double side', extra: 0 }] },
   sticker: { label: 'STICKER SHEET', choices: [{ v: 'None', t: 'Not a sticker', extra: 0 }, { v: 'Paper', t: 'Paper', extra: 0 }, { v: 'Transparent', t: 'Transparent', extra: 0 }, { v: 'NT', t: 'NT', extra: 0 }, { v: 'Gold', t: 'Gold', extra: 0 }] },
@@ -64,7 +64,7 @@ export function digitalExtra(d = {}) {
 
 /** Readable spec line, e.g. '11" × 17" · Matt lamination · 300 GSM · Single side · Spot UV' */
 export function describeDigital(d = {}) {
-  const parts = [pick('sheetSize', d.sheetSize).t, `${pick('lamination', d.lamination).t} lamination`, pick('gsm', d.gsm).t, pick('sides', d.sides).t];
+  const parts = [pick('sheetSize', d.sheetSize).t, (pick('lamination', d.lamination).v === 'None' ? 'No lamination' : `${pick('lamination', d.lamination).t} lamination`), pick('gsm', d.gsm).t, pick('sides', d.sides).t];
   const st = pick('sticker', d.sticker);
   if (st.v !== 'None') parts.push(`${st.t} sticker sheet`);
   (d.addons || []).forEach(a => parts.push(a));
