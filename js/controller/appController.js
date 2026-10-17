@@ -9,9 +9,9 @@ import { getUVDTFWeight, getFabricWeight } from '../modules/deliveryEngine.js';
 import { calculatePackedDimensions } from '../modules/packingEngine.js';
 import { calculateQuote } from '../modules/pricingBrain.js';
 import { update, getState } from '../state/store.js';
-import { getPrintableWidthFor, getPackingMarginFor, getImageWidthLimitFor } from '../config/formats.js';
+import { getPrintableWidthFor, getPackingMarginFor, getImageWidthLimitFor, setActiveDigitalSheet } from '../config/formats.js';
 import { validateImageSize } from '../modules/imageProcessor.js';
-import { lineTotal, describeOptions, isCatalogTech } from '../modules/dropshipEngine.js';
+import { lineTotal, describeOptions, isCatalogTech, digitalExtra, describeDigital } from '../modules/dropshipEngine.js';
 
 /**
  * Full recalculation pipeline. Called on any input change.
@@ -301,6 +301,7 @@ export function setUvPrintType(type) {
 export function updateDropship(partial) {
   const s = getState();
   const key = s.printTechnology === 'digital' ? 'digital' : 'dropship';
+  if (key === 'digital' && partial.sheetSize) setActiveDigitalSheet(partial.sheetSize);
   update({ [key]: { ...s[key], ...partial } });
   recalculate();
 }
@@ -310,12 +311,12 @@ function addDropshipToCart() {
   const key = s.printTechnology === 'digital' ? 'digital' : 'dropship';
   const d = s[key];
   const sheets = key === 'digital' && s.autoSheets ? s.autoSheets : d.qty;
-  const { qty, rate, total } = lineTotal(d.variant, sheets, d.placements, d.addons);
+  const { qty, rate, total } = lineTotal(d.variant, sheets, d.placements, d.addons, key === 'digital' ? digitalExtra(d) : 0);
   const cartItem = {
     id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
     printTechnology: key,
     variant: d.variant,
-    options: describeOptions(d.placements, d.addons),
+    options: key === 'digital' ? describeDigital(d) : describeOptions(d.placements, d.addons),
     format: key === 'digital' ? 'Digital' : 'Dropship',
     isSheetFormat: true,
     quantity: qty,

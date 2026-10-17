@@ -17,10 +17,12 @@ import {
   calculateUVDTFA3EquivalentSheets,
 } from './deliveryEngine.js';
 import { generateQuote } from './quoteGenerator.js';
-import { lineTotal, describeOptions, isCatalogTech } from './dropshipEngine.js';
+import { lineTotal, describeOptions, isCatalogTech, digitalExtra, describeDigital } from './dropshipEngine.js';
 import {
   getPrintableWidthFor,
   getImageWidthLimitFor,
+  getDigitalSheet,
+  setActiveDigitalSheet,
   UV_SHEET_WIDTH,
   UV_A3_LENGTH,
   UV_CUSTOM_MAX_LENGTH,
@@ -60,8 +62,6 @@ const DEFAULT_ERP_RATES = {
 };
 
 // Digital Printing (paper) sheet used to pack designs — same A4 sheet size as the rest of the tool.
-const DIGITAL_SHEET_W = UV_SHEET_WIDTH;
-const DIGITAL_SHEET_H = 8;
 
 const SIZE_TOLERANCE = 0.1; // inches — allowance when matching a design to a sheet size
 
@@ -694,6 +694,10 @@ function calculateAutoQuote(s, config) {
 function calculateDropshipQuote(s, config) {
   const tech = s.printTechnology === 'digital' ? 'digital' : 'dropship';
   const d = s[tech] || {};
+  if (tech === 'digital') setActiveDigitalSheet(d.sheetSize);
+  const sheet = getDigitalSheet(tech === 'digital' ? d.sheetSize : undefined);
+  const DIGITAL_SHEET_W = sheet.w;
+  const DIGITAL_SHEET_H = sheet.h;
   // Digital Printing: designs (uploaded images / manual sizes) decide how many sheets are needed
   let autoSheets = null;
   let autoDesigns = 0;
@@ -713,11 +717,11 @@ function calculateDropshipQuote(s, config) {
       autoPieces = items.reduce((n, it) => n + (Number(it.quantity) || 1), 0);
     }
   }
-  const { qty, rate, total } = lineTotal(d.variant, autoSheets || d.qty, d.placements, d.addons);
+  const { qty, rate, total } = lineTotal(d.variant, autoSheets || d.qty, d.placements, d.addons, tech === 'digital' ? digitalExtra(d) : 0);
   const weight = Math.max(0, Number(d.weight) || 0);
   const delivery = resolveDelivery(s, 0, qty, weight, config);
   const finalTotal = Math.ceil(total + delivery.packagingCost + delivery.shippingCost);
-  const options = describeOptions(d.placements, d.addons);
+  const options = tech === 'digital' ? describeDigital(d) : describeOptions(d.placements, d.addons);
 
   const result = {
     isValid: true,

@@ -31,9 +31,45 @@ export const DROPSHIP_RATES = {
 /** Print add-on per placement, by chosen print size */
 /** Digital Printing (Paper) — flat rate per sheet, same rates as the ERP */
 export const DIGITAL_RATES = {
+  'Digital Paper Sheet': 250,
   'Spot UV - Paper Sheet (Matt)': 250,
   'Gold Foil - Paper Sheet (Matt)': 250,
 };
+
+/**
+ * Digital Printing options (from the shop's spec list). The base rate stays ₹250 / sheet (same as the ERP).
+ * `extra` is the per-sheet surcharge for each choice. All 0 until the rates for each option are confirmed:
+ * put the ₹ amount next to an option and every quote picks it up.
+ */
+export const DIGITAL_OPTIONS = {
+  sheetSize: { label: 'SHEET SIZE', choices: [{ v: '11x17', t: '11" × 17"', extra: 0 }, { v: '12x18', t: '12" × 18"', extra: 0 }, { v: '13x19', t: '13" × 19"', extra: 0 }] },
+  lamination: { label: 'LAMINATION', choices: [{ v: 'Gloss', t: 'Gloss', extra: 0 }, { v: 'Matt', t: 'Matt', extra: 0 }, { v: 'Velvet', t: 'Velvet', extra: 0 }] },
+  gsm: { label: 'SHEET (GSM)', choices: [{ v: '130', t: '130 GSM', extra: 0 }, { v: '300', t: '300 GSM', extra: 0 }, { v: '350', t: '350 GSM', extra: 0 }] },
+  sides: { label: 'PRINT', choices: [{ v: 'Single side', t: 'Single side', extra: 0 }, { v: 'Double side', t: 'Double side', extra: 0 }] },
+  sticker: { label: 'STICKER SHEET', choices: [{ v: 'None', t: 'Not a sticker', extra: 0 }, { v: 'Paper', t: 'Paper', extra: 0 }, { v: 'Transparent', t: 'Transparent', extra: 0 }, { v: 'NT', t: 'NT', extra: 0 }, { v: 'Gold', t: 'Gold', extra: 0 }] },
+};
+export const DIGITAL_ADDONS = [{ value: 'Spot UV', extra: 0 }, { value: 'Gold Foil', extra: 0 }];
+export const DIGITAL_DEFAULTS = { sheetSize: '11x17', lamination: 'Matt', gsm: '300', sides: 'Single side', sticker: 'None' };
+
+const pick = (key, v) => (DIGITAL_OPTIONS[key].choices.find(c => c.v === v) || DIGITAL_OPTIONS[key].choices[0]);
+
+/** Per-sheet surcharge from the chosen Digital options (0 for Dropship / unset). */
+export function digitalExtra(d = {}) {
+  if (!d.sheetSize) return 0;
+  let x = 0;
+  Object.keys(DIGITAL_OPTIONS).forEach(k => { x += pick(k, d[k] ?? DIGITAL_DEFAULTS[k]).extra || 0; });
+  (d.addons || []).forEach(a => { x += (DIGITAL_ADDONS.find(y => y.value === a) || {}).extra || 0; });
+  return x;
+}
+
+/** Readable spec line, e.g. '11" × 17" · Matt lamination · 300 GSM · Single side · Spot UV' */
+export function describeDigital(d = {}) {
+  const parts = [pick('sheetSize', d.sheetSize).t, `${pick('lamination', d.lamination).t} lamination`, pick('gsm', d.gsm).t, pick('sides', d.sides).t];
+  const st = pick('sticker', d.sticker);
+  if (st.v !== 'None') parts.push(`${st.t} sticker sheet`);
+  (d.addons || []).forEach(a => parts.push(a));
+  return parts.join(' · ');
+}
 
 /** Rate lookup across both catalogues */
 export const baseRate = variant => (DROPSHIP_RATES[variant] ?? DIGITAL_RATES[variant] ?? 0);
@@ -65,8 +101,8 @@ export function placementsFor(variant) {
 }
 
 /** Per-piece rate = base + each placement size + each add-on (garments only) */
-export function unitRate(variant, placements = {}, addons = []) {
-  let rate = baseRate(variant);
+export function unitRate(variant, placements = {}, addons = [], extra = 0) {
+  let rate = baseRate(variant) + (Number(extra) || 0);
   if (isApparel(variant)) {
     Object.values(placements).forEach(sz => { rate += SIZE_RATE[sz] || 0; });
     addons.forEach(a => { rate += (ADDONS.find(x => x.value === a) || {}).rate || 0; });
@@ -74,9 +110,9 @@ export function unitRate(variant, placements = {}, addons = []) {
   return rate;
 }
 
-export function lineTotal(variant, qty, placements, addons) {
+export function lineTotal(variant, qty, placements, addons, extra = 0) {
   const q = Math.max(1, Math.floor(Number(qty) || 1));
-  const rate = unitRate(variant, placements, addons);
+  const rate = unitRate(variant, placements, addons, extra);
   return { qty: q, rate, total: Math.ceil(rate * q) };
 }
 
@@ -108,8 +144,9 @@ export function describeOptions(placements = {}, addons = []) {
 }
 
 /** Step-by-step rate lines for the live "rate breakdown" box */
-export function rateBreakdown(variant, placements = {}, addons = []) {
+export function rateBreakdown(variant, placements = {}, addons = [], extra = 0) {
   const rows = [{ label: 'Base rate', amount: baseRate(variant) }];
+  if (extra) rows.push({ label: 'Selected options', amount: extra });
   if (isApparel(variant)) {
     Object.entries(placements).forEach(([pos, sz]) => rows.push({ label: `${pos} — ${sz}`, amount: SIZE_RATE[sz] || 0 }));
     addons.forEach(a => rows.push({ label: a, amount: (ADDONS.find(x => x.value === a) || {}).rate || 0 }));

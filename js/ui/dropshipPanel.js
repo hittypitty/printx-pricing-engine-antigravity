@@ -7,7 +7,7 @@
 import { getState, subscribe } from '../state/store.js';
 import { updateDropship, addToCart } from '../controller/appController.js';
 import {
-  baseRate, DIGITAL_RATES, ADDONS, isApparel, placementsFor, groupedProducts, rateBreakdown, unitRate, lineTotal,
+  baseRate, DIGITAL_RATES, DIGITAL_OPTIONS, DIGITAL_ADDONS, DIGITAL_DEFAULTS, digitalExtra, ADDONS, isApparel, placementsFor, groupedProducts, rateBreakdown, unitRate, lineTotal,
 } from '../modules/dropshipEngine.js';
 
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -25,7 +25,7 @@ export function init(container) {
   subscribe(state => {
     // Rebuild only when the structure changes (product / selections); keep typing focus otherwise.
     const d = current(state);
-    const shape = JSON.stringify([state.printTechnology, d.variant, d.placements, d.addons, state.cart ? state.cart.length : 0]);
+    const shape = JSON.stringify([state.printTechnology, d.variant, d.placements, d.addons, d.sheetSize, d.lamination, d.gsm, d.sides, d.sticker, state.cart ? state.cart.length : 0]);
     if (shape !== lastShape) render(d);
     else refreshSummary(d);
     syncAuto(state);
@@ -37,7 +37,7 @@ const current = state => (state.printTechnology === 'digital' ? state.digital : 
 
 function render(d) {
   const hadFocus = mount.contains(document.activeElement) ? document.activeElement.id : null;
-  lastShape = JSON.stringify([getState().printTechnology, d.variant, d.placements, d.addons, (getState().cart || []).length]);
+  lastShape = JSON.stringify([getState().printTechnology, d.variant, d.placements, d.addons, d.sheetSize, d.lamination, d.gsm, d.sides, d.sticker, (getState().cart || []).length]);
   const apparel = isApparel(d.variant);
 
   const digital = isDigital();
@@ -82,10 +82,10 @@ function render(d) {
       </div>
       <div class="card-body">
         <div class="ds-row">
-          <div style="flex: 1 1 100%;">
+          ${digital ? digitalSpecs(d) : `<div style="flex: 1 1 100%;">
             <label class="field-label">PRODUCT</label>
             <select class="input-field" data-ds="variant" id="ds-variant">${productOptions}</select>
-          </div>
+          </div>`}
           <div style="flex: 1; min-width: 120px;">
             <label class="field-label">${digital ? 'SHEETS' : 'QUANTITY'}</label>
             <input type="number" class="input-field" min="1" step="1" value="${esc(d.qty)}" data-ds="qty" id="ds-qty" />
@@ -96,7 +96,7 @@ function render(d) {
             <input type="number" class="input-field" min="0" step="0.05" value="${esc(d.weight)}" data-ds="weight" id="ds-weight" />
           </div>
         </div>
-        ${placementRows}
+        ${digital ? digitalAddons(d) : placementRows}
         <div class="ds-summary" id="ds-summary"></div>
         <button type="button" class="btn btn-primary" data-ds="add" id="ds-add" style="width: 100%; margin-top: var(--space-lg); font-weight: 600;">+ Add to Quote</button>
       </div>
@@ -104,6 +104,25 @@ function render(d) {
   refreshSummary(d);
   syncAuto(getState());
   if (hadFocus) { const el = mount.querySelector('#' + hadFocus); if (el) el.focus(); }
+}
+
+function digitalSpecs(d) {
+  return Object.entries(DIGITAL_OPTIONS).map(([key, o]) => `
+    <div style="flex: 1 1 45%; min-width: 150px;">
+      <label class="field-label">${o.label}</label>
+      <select class="input-field" data-ds="spec" data-key="${key}" id="ds-spec-${key}">
+        ${o.choices.map(c => `<option value="${esc(c.v)}" ${(d[key] ?? DIGITAL_DEFAULTS[key]) === c.v ? 'selected' : ''}>${esc(c.t)}${c.extra ? ' (+₹' + c.extra + ')' : ''}</option>`).join('')}
+      </select>
+    </div>`).join('');
+}
+
+function digitalAddons(d) {
+  return `<div class="ds-block">
+      <label class="field-label">ADD-ON</label>
+      <div class="chip-group">
+        ${DIGITAL_ADDONS.map(a => `<button type="button" class="chip ${(d.addons || []).includes(a.value) ? 'active' : ''}" data-ds="addon" data-value="${esc(a.value)}">${esc(a.value)}${a.extra ? ' (+₹' + a.extra + ')' : ''}</button>`).join('')}
+      </div>
+    </div>`;
 }
 
 // Digital: when designs are entered, the sheet count comes from them (read-only).
@@ -125,21 +144,24 @@ function syncAuto(state) {
 function refreshSummary(d) {
   const box = mount && mount.querySelector('#ds-summary');
   if (!box) return;
-  const rows = rateBreakdown(d.variant, d.placements, d.addons);
+  const extra = isDigital() ? digitalExtra(d) : 0;
+  const rows = rateBreakdown(d.variant, d.placements, d.addons, extra);
   const st = getState();
   const eff = st.printTechnology === 'digital' && st.autoSheets ? st.autoSheets : d.qty;
-  const { qty, rate, total } = lineTotal(d.variant, eff, d.placements, d.addons);
+  const { qty, rate, total } = lineTotal(d.variant, eff, d.placements, d.addons, extra);
   box.innerHTML = `
     ${rows.map(r => `<div class="ds-line"><span>${esc(r.label)}</span><span>${r.amount ? '₹' + r.amount : 'FREE'}</span></div>`).join('')}
-    <div class="ds-line ds-rate"><span>Rate per piece</span><span>₹${unitRate(d.variant, d.placements, d.addons)}</span></div>
+    <div class="ds-line ds-rate"><span>Rate per piece</span><span>₹${unitRate(d.variant, d.placements, d.addons, extra)}</span></div>
     <div class="ds-line ds-total"><span>${qty} pc × ₹${rate}</span><span>₹${total}</span></div>`;
 }
 
 function onChange(e) {
   const t = e.target.closest('[data-ds]');
   if (!t) return;
-  const d = getState().dropship;
-  if (t.dataset.ds === 'variant') {
+  const d = current(getState());
+  if (t.dataset.ds === 'spec') {
+    updateDropship({ [t.dataset.key]: t.value });
+  } else if (t.dataset.ds === 'variant') {
     updateDropship({ variant: t.value, placements: {}, addons: [] });
   } else if (t.dataset.ds === 'placement') {
     const placements = { ...d.placements };
@@ -158,7 +180,7 @@ function onInput(e) {
 function onClick(e) {
   const t = e.target.closest('[data-ds]');
   if (!t) return;
-  const d = getState().dropship;
+  const d = current(getState());
   if (t.dataset.ds === 'addon') {
     const v = t.dataset.value;
     updateDropship({ addons: d.addons.includes(v) ? d.addons.filter(a => a !== v) : [...d.addons, v] });

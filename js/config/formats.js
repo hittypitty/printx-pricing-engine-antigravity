@@ -28,8 +28,20 @@ export const FORMATS = {
  * @param {'fabric'|'uv_dtf'|'sublimation'} tech
  * @returns {number} inches
  */
+/** Digital Printing (paper) sheet sizes, inches (width × length). Chosen in the Digital panel. */
+export const DIGITAL_SHEETS = {
+  '11x17': { w: 11, h: 17, label: '11" × 17"' },
+  '12x18': { w: 12, h: 18, label: '12" × 18"' },
+  '13x19': { w: 13, h: 19, label: '13" × 19"' },
+};
+export const DEFAULT_DIGITAL_SHEET = '11x17';
+let activeDigitalSheet = DEFAULT_DIGITAL_SHEET;
+export function setActiveDigitalSheet(key) { activeDigitalSheet = DIGITAL_SHEETS[key] ? key : DEFAULT_DIGITAL_SHEET; }
+export function getDigitalSheet(key) { return DIGITAL_SHEETS[key || activeDigitalSheet] || DIGITAL_SHEETS[DEFAULT_DIGITAL_SHEET]; }
+
 export function getPrintableWidthFor(tech) {
-  if (tech === 'uv_dtf' || tech === 'digital') return UV_SHEET_WIDTH;
+  if (tech === 'digital') return getDigitalSheet().w;
+  if (tech === 'uv_dtf') return UV_SHEET_WIDTH;
   if (tech === 'sublimation') return SUBLIMATION_WIDTH;
   return PRINTABLE_WIDTH;
 }
@@ -39,7 +51,8 @@ export function getPrintableWidthFor(tech) {
  * 22.8" for fabric/sublimation, 11" for UV DTF sheets).
  */
 export function getImageWidthLimitFor(tech) {
-  return (tech === 'uv_dtf' || tech === 'digital') ? UV_SHEET_WIDTH : PRINTABLE_WIDTH;
+  if (tech === 'digital') return getDigitalSheet().w;
+  return tech === 'uv_dtf' ? UV_SHEET_WIDTH : PRINTABLE_WIDTH;
 }
 
 /**
