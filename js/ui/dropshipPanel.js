@@ -183,7 +183,12 @@ function onClick(e) {
   const d = current(getState());
   if (t.dataset.ds === 'addon') {
     const v = t.dataset.value;
-    updateDropship({ addons: d.addons.includes(v) ? d.addons.filter(a => a !== v) : [...d.addons, v] });
+    const has = (d.addons || []).includes(v);
+    // Digital: only one add-on at a time (Spot UV OR Gold Foil). Dropship garments can stack add-ons.
+    const addons = isDigital()
+      ? (has ? [] : [v])
+      : (has ? d.addons.filter(a => a !== v) : [...d.addons, v]);
+    updateDropship({ addons });
   } else if (t.dataset.ds === 'add') {
     addToCart();
   }
