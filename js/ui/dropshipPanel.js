@@ -22,6 +22,8 @@ export function init(container) {
   mount.addEventListener('change', onChange);
   mount.addEventListener('input', onInput);
   mount.addEventListener('click', onClick);
+  // The ERP sync changed the product list / rates → rebuild the dropdown
+  document.addEventListener('erp-catalog-changed', () => { lastShape = ''; render(current(getState())); });
   subscribe(state => {
     // Rebuild only when the structure changes (product / selections); keep typing focus otherwise.
     const d = current(state);

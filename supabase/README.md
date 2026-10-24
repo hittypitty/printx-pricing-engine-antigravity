@@ -38,3 +38,10 @@ The **BV Catalog** page shows the live stock to everyone.
 | Visitor (not logged in) | See products marked "Show on catalog" |
 | inventory_manager | Add/edit products & price tiers, add/remove stock, hide products, see stock history |
 | admin | Everything above + delete products |
+
+## 5. Live rates from the ERP (calculator ↔ ERP)
+Once `js/config/supabase.js` is filled (step 2), the calculator reads the ERP's pricing setup
+(`settings.pricing_config` — Admin → Pricing & Rates) every 20 seconds and when the tab is reopened.
+Core rates, couriers, weights, Sublimation, Dropship products (new / renamed / removed, with sub-category + MOQ)
+and Digital paper rates all follow the ERP. A small pill at the bottom-left shows "Live from ERP · time"
+(click it to refresh now). Read-only: the calculator never writes to the ERP. No new SQL needed.

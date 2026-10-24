@@ -79,6 +79,8 @@ try {
 } catch (e) {
   // Ignore storage access errors
 }
+// Config is intentionally NOT persisted locally (the codebase / ERP is the source of truth).
+function saveToStorage() { /* no-op */ }
 let config = deepClone(defaults);
 const listeners = [];
 

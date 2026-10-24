@@ -123,8 +123,22 @@ export const DROPSHIP_GROUPS = [
   { label: 'Drinkware', match: /Sipper|Mug/i },
 ];
 
+/** Extra info per product synced from the ERP: { [variant]: { subCategory, moq } } */
+export const DROPSHIP_META = {};
+
 export function groupedProducts() {
   const names = Object.keys(DROPSHIP_RATES);
+  // When the ERP supplies sub-categories (Apparels / Other Products / …), group by those.
+  if (names.some(n => DROPSHIP_META[n]?.subCategory)) {
+    const order = [];
+    const bySub = {};
+    names.forEach(n => {
+      const sub = DROPSHIP_META[n]?.subCategory || 'Other';
+      if (!bySub[sub]) { bySub[sub] = []; order.push(sub); }
+      bySub[sub].push(n);
+    });
+    return order.map(label => ({ label, items: bySub[label] }));
+  }
   const used = new Set();
   const groups = DROPSHIP_GROUPS.map(g => {
     const items = names.filter(n => g.match.test(n));

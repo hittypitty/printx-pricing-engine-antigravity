@@ -12,6 +12,7 @@ import { init as initQuote } from './ui/quoteRenderer.js';
 import { recalculate } from './controller/appController.js';
 import { getState } from './state/store.js';
 import { readPrefill, applyPrefill } from './state/urlPrefill.js';
+import { init as initErpSync } from './modules/erpSync.js';
 
 document.addEventListener('DOMContentLoaded', () => {
   // Details sent from the ERP via the URL (optional)
@@ -31,6 +32,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Run initial calculation with default state
   recalculate();
+
+  // Live rates + products from the PrintX ERP (only active once js/config/supabase.js is filled)
+  initErpSync();
 });
 
 function showErpBanner(info) {
