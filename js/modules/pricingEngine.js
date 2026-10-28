@@ -108,14 +108,16 @@ export function calculatePrintCost(dims, config) {
     } else {
       const slabs = uvDtfPricing.A3_SLABS;
       const slab = slabs.find(s => quantity >= s.min && quantity <= s.max);
-      const rate = slab ? slab.rate : slabs[slabs.length - 1].rate;
+      const isDouble = uvPrintType === 'double';
+      // Double sided: flat rate for any quantity (1+), A3 only
+      const rate = isDouble ? (uvDtfPricing.A3_DOUBLE_SIDE || 472) : (slab ? slab.rate : slabs[slabs.length - 1].rate);
       const printCost = rate * quantity;
       const effectiveRate = totalSqInches > 0 ? (printCost / totalSqInches).toFixed(2) : '0.00';
       return {
         printCost,
         effectiveRate,
         rateApplied: rate,
-        methodLabel: `UV A3`,
+        methodLabel: isDouble ? `UV A3 Double Sided` : `UV A3`,
         breakdown: `${quantity} pcs × ₹${rate} / pc`,
       };
     }

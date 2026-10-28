@@ -199,6 +199,19 @@ test('Dropship: non-apparel ignores print placements, qty floors at 1', () => {
   assert.equal(ds.placementsFor('(400 GSM) Hoodie').some(p => p.key === 'Hood'), true);
 });
 
+test('UV Double Sided: A3 only, flat ₹472 per sheet for 1+ (no slab discount)', () => {
+  const q1 = quote({ printTechnology: 'uv_dtf', uvPrintType: 'double', format: 'A3', quantity: 1 });
+  assert.equal(q1.printCost, 472); assert.equal(q1.rateApplied, 472); assert.equal(q1.methodLabel, 'UV A3 Double Sided');
+  const q150 = quote({ printTechnology: 'uv_dtf', uvPrintType: 'double', format: 'A3', quantity: 150 });
+  assert.equal(q150.printCost, 472 * 150);   // normal A3 would drop to ₹236 at 100+
+  assert.equal(quote({ printTechnology: 'uv_dtf', uvPrintType: 'normal', format: 'A3', quantity: 150 }).rateApplied, 236);
+});
+test('UV Double Sided: auto-pack from designs always uses A3 sheets', () => {
+  const q = calculateQuote({ ...base, printTechnology: 'uv_dtf', uvPrintType: 'double', inputMode: 'manual-size', designTab: 'manual-size',
+    manualSizes: [{ id: 'a', width: 4, length: 4, quantity: 2 }] }, config);
+  if (q.isValid) { assert.equal(q.format, 'A3'); assert.equal(q.rateApplied, 472); }
+});
+
 console.log(`\n${passed} passed, ${failed} failed\n`);
 if (failed > 0) process.exit(1);
 

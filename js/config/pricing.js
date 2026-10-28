@@ -20,6 +20,7 @@ export const TRANSPORT_COST = 50; // ₹, local transport delivery
 export const UV_DTF_PRICING = {
   A4_NORMAL: 177,
   A4_3D: 236,
+  A3_DOUBLE_SIDE: 472, // Double-sided UV — A3 only, flat ₹ per sheet for 1+ sheets
   A3_SLABS: [
     { min: 1,   max: 20,       rate: 354 },
     { min: 21,  max: 49,       rate: 325 },

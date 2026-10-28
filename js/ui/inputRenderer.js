@@ -149,6 +149,7 @@ function buildHTML(state) {
           <div class="btn-group" style="margin-bottom: 0;">
             <button class="btn btn-select ${state.uvPrintType === 'normal' ? 'active' : ''}" data-action="set-uv-type" data-value="normal" id="uv-type-normal">Normal</button>
             <button class="btn btn-select ${state.uvPrintType === '3d' ? 'active' : ''}" data-action="set-uv-type" data-value="3d" id="uv-type-3d">3D</button>
+            <button class="btn btn-select ${state.uvPrintType === 'double' ? 'active' : ''}" data-action="set-uv-type" data-value="double" id="uv-type-double" title="Double sided — A3 only">Double Sided <small style="opacity:.75">(A3 only)</small></button>
           </div>
         </div>
       </div>
@@ -354,7 +355,11 @@ function handleClick(e) {
       setDesignTab(value);
       break;
     case 'format':
-      if (getState().inputMode !== 'image' && getState().inputMode !== 'manual-size') onInputChange('format', value);
+      if (getState().inputMode !== 'image' && getState().inputMode !== 'manual-size') {
+        // Double sided exists only in A3 — picking A4 / Custom switches back to Normal
+        if (value !== 'A3' && getState().uvPrintType === 'double') onInputChange('uvPrintType', 'normal');
+        onInputChange('format', value);
+      }
       break;
     case 'delivery':
       onInputChange('deliveryMethod', value);
@@ -542,6 +547,7 @@ function updateDOM(container, state) {
   
   container.querySelectorAll('#uv-type-normal').forEach(btn => btn.classList.toggle('active', state.uvPrintType === 'normal'));
   container.querySelectorAll('#uv-type-3d').forEach(btn => btn.classList.toggle('active', state.uvPrintType === '3d'));
+  container.querySelectorAll('#uv-type-double').forEach(btn => btn.classList.toggle('active', state.uvPrintType === 'double'));
 
   // Update Design Tabs
   container.querySelectorAll('#tab-image').forEach(btn => btn.classList.toggle('active', state.designTab === 'image'));
@@ -842,7 +848,7 @@ function updateDOM(container, state) {
       }
       let itemTech = 'Fabric DTF';
       if (item.printTechnology === 'uv_dtf') {
-        itemTech = `UV DTF (${item.uvPrintType === '3d' ? '3D' : 'Normal'})`;
+        itemTech = `UV DTF (${item.uvPrintType === '3d' ? '3D' : item.uvPrintType === 'double' ? 'Double Sided' : 'Normal'})`;
       } else if (item.printTechnology === 'sublimation') {
         itemTech = 'Sublimation';
       }

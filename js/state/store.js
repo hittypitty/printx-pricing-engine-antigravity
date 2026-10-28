@@ -6,7 +6,7 @@
 const state = {
   // --- User Inputs ---
   printTechnology: 'fabric', // 'fabric' | 'uv_dtf' | 'sublimation' | 'dropship' | 'digital'
-  uvPrintType: 'normal', // 'normal' | '3d'
+  uvPrintType: 'normal', // 'normal' | '3d' | 'double' (double = A3 only)
   designTab: 'image', // 'image' | 'manual-size'
   inputMode: 'manual', // 'manual' | 'image' | 'manual-size'
   images: [], // Array of uploaded image objects

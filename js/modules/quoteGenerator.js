@@ -54,7 +54,7 @@ export function generateQuote(state) {
       }
       let itemTech = 'Fabric DTF';
       if (item.printTechnology === 'uv_dtf') {
-        itemTech = `UV DTF (${item.uvPrintType === '3d' ? '3D' : 'Normal'})`;
+        itemTech = `UV DTF (${item.uvPrintType === '3d' ? '3D' : item.uvPrintType === 'double' ? 'Double Sided' : 'Normal'})`;
       } else if (item.printTechnology === 'sublimation') {
         itemTech = 'Sublimation';
       }
@@ -154,7 +154,7 @@ export function generateQuote(state) {
   
   let techLabel = 'Fabric DTF';
   if (printTechnology === 'uv_dtf') {
-    techLabel = `UV DTF (${uvPrintType === '3d' ? '3D' : 'Normal'})`;
+    techLabel = `UV DTF (${uvPrintType === '3d' ? '3D' : uvPrintType === 'double' ? 'Double Sided' : 'Normal'})`;
   } else if (printTechnology === 'sublimation') {
     techLabel = 'Sublimation';
   }

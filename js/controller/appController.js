@@ -293,7 +293,11 @@ export function setPrintTechnology(tech) {
 }
 
 export function setUvPrintType(type) {
-  update({ uvPrintType: type });
+  const patch = { uvPrintType: type };
+  // Double sided is A3 only — in manual format mode jump to A3 (image / size modes auto-pack onto A3)
+  const s = getState();
+  if (type === 'double' && s.inputMode !== 'image' && s.inputMode !== 'manual-size' && s.format !== 'A3') patch.format = 'A3';
+  update(patch);
   recalculate();
 }
 

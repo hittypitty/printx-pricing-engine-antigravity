@@ -487,6 +487,9 @@ function priceUVAuto(s, items, config) {
   }
 
   const uvDtfPricing = config.uvDtfPricing;
+  const isDouble = s.uvPrintType === 'double';
+  // Double sided exists only in A3 — never auto-pick A4 / Custom sheets for it
+  if (isDouble && detectedFormat !== 'A3') detectedFormat = null;
 
   if (detectedFormat) {
     const qty = items[0].quantity;
@@ -519,11 +522,11 @@ function priceUVAuto(s, items, config) {
   const priceA4 = a4.totalSheets * a4Rate; // Infinity if a design doesn't fit A4
 
   const a3 = calculateUVDTFSheets(items, UV_SHEET_WIDTH, UV_A3_LENGTH);
-  const a3Rate = pickSlab(uvDtfPricing.A3_SLABS, a3.totalSheets).rate;
+  const a3Rate = isDouble ? (uvDtfPricing.A3_DOUBLE_SIDE || 472) : pickSlab(uvDtfPricing.A3_SLABS, a3.totalSheets).rate;
   const priceA3 = a3.totalSheets * a3Rate;
 
-  // Choose A3 if it is cheaper, or if prices are equal but it uses fewer physical sheets
-  const useA3 = priceA3 < priceA4 || (priceA3 === priceA4 && a3.totalSheets < a4.totalSheets);
+  // Choose A3 if it is cheaper, or if prices are equal but it uses fewer physical sheets (double sided → always A3)
+  const useA3 = isDouble || priceA3 < priceA4 || (priceA3 === priceA4 && a3.totalSheets < a4.totalSheets);
   const format = useA3 ? 'A3' : 'A4';
   const sheets = useA3 ? a3.totalSheets : a4.totalSheets;
   const rate = useA3 ? a3Rate : a4Rate;
@@ -546,7 +549,7 @@ function priceUVAuto(s, items, config) {
     printCost: price,
     effectiveRate: dims.totalSqInches > 0 ? (price / dims.totalSqInches).toFixed(2) : '0.00',
     rateApplied: rate,
-    methodLabel: useA3 ? 'UV A3' : `UV A4 ${s.uvPrintType === '3d' ? '3D' : 'Normal'}`,
+    methodLabel: useA3 ? (isDouble ? 'UV A3 Double Sided' : 'UV A3') : `UV A4 ${s.uvPrintType === '3d' ? '3D' : 'Normal'}`,
     breakdown: `${sheets} pcs × ₹${rate} / pc`,
   };
   return { format, dims, pricing };
