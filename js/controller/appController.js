@@ -9,9 +9,10 @@ import { getUVDTFWeight, getFabricWeight } from '../modules/deliveryEngine.js';
 import { calculatePackedDimensions } from '../modules/packingEngine.js';
 import { calculateQuote } from '../modules/pricingBrain.js';
 import { update, getState } from '../state/store.js';
-import { getPrintableWidthFor, getPackingMarginFor, getImageWidthLimitFor, setActiveDigitalSheet } from '../config/formats.js';
+import { getPrintableWidthFor, getPackingMarginFor, getImageWidthLimitFor } from '../config/formats.js';
 import { validateImageSize } from '../modules/imageProcessor.js';
-import { lineTotal, describeOptions, isCatalogTech, digitalExtra, describeDigital } from '../modules/dropshipEngine.js';
+import { lineTotal, describeOptions, isCatalogTech } from '../modules/dropshipEngine.js';
+import { calcDigital, normalizeDigital } from '../modules/digitalEngine.js';
 
 /**
  * Full recalculation pipeline. Called on any input change.
@@ -305,8 +306,10 @@ export function setUvPrintType(type) {
 export function updateDropship(partial) {
   const s = getState();
   const key = s.printTechnology === 'digital' ? 'digital' : 'dropship';
-  if (key === 'digital' && partial.sheetSize) setActiveDigitalSheet(partial.sheetSize);
-  update({ [key]: { ...s[key], ...partial } });
+  const merged = { ...s[key], ...partial };
+  // Turning die-cut off also drops the automatic file setting (it can still be ticked on its own)
+  if (key === 'digital' && partial.dieCut === false && partial.fileSetting === undefined) merged.fileSetting = false;
+  update({ [key]: key === 'digital' ? normalizeDigital(merged) : merged });
   recalculate();
 }
 
@@ -315,27 +318,58 @@ function addDropshipToCart() {
   const key = s.printTechnology === 'digital' ? 'digital' : 'dropship';
   const d = s[key];
   const sheets = key === 'digital' && s.autoSheets ? s.autoSheets : d.qty;
-  const { qty, rate, total } = lineTotal(d.variant, sheets, d.placements, d.addons, key === 'digital' ? digitalExtra(d) : 0);
-  const cartItem = {
-    id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
-    printTechnology: key,
-    variant: d.variant,
-    options: key === 'digital' ? describeDigital(d) : describeOptions(d.placements, d.addons),
-    format: key === 'digital' ? 'Digital' : 'Dropship',
-    isSheetFormat: true,
-    quantity: qty,
-    rate,
-    printCost: total,
-    conversionCost: 0,
-    conversionBreakdown: '',
-    conversions: [],
-    totalMeters: 0,
-    totalSqInches: 0,
-    length: 0,
-    pricingWidth: 0,
-    designCount: key === 'digital' ? (s.autoDesigns || 0) : 0,
-    weight: Math.max(0, Number(d.weight) || 0),
-  };
+  let cartItem;
+  if (key === 'digital') {
+    const dig = calcDigital(d, sheets);
+    if (!dig.valid) return;
+    cartItem = {
+      id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+      printTechnology: 'digital',
+      variant: d.material,
+      options: dig.options,
+      format: 'Digital',
+      isSheetFormat: true,
+      quantity: dig.sheets,
+      rate: dig.rate,
+      printCost: dig.subtotal,
+      digitalLines: dig.lines,
+      gstMode: dig.gstMode,
+      gstAdd: dig.gstAdd,
+      gstIncluded: dig.gstIncluded,
+      gstBase: dig.gstBase,
+      conversionCost: 0,
+      conversionBreakdown: '',
+      conversions: [],
+      totalMeters: 0,
+      totalSqInches: 0,
+      length: 0,
+      pricingWidth: 0,
+      designCount: s.autoDesigns || 0,
+      weight: Math.max(0, Number(d.weight) || 0),
+    };
+  } else {
+    const { qty, rate, total } = lineTotal(d.variant, sheets, d.placements, d.addons, 0);
+    cartItem = {
+      id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+      printTechnology: key,
+      variant: d.variant,
+      options: describeOptions(d.placements, d.addons),
+      format: 'Dropship',
+      isSheetFormat: true,
+      quantity: qty,
+      rate,
+      printCost: total,
+      conversionCost: 0,
+      conversionBreakdown: '',
+      conversions: [],
+      totalMeters: 0,
+      totalSqInches: 0,
+      length: 0,
+      pricingWidth: 0,
+      designCount: 0,
+      weight: Math.max(0, Number(d.weight) || 0),
+    };
+  }
   if (key === 'digital') (s.images || []).forEach(img => { if (img.dataUrl) URL.revokeObjectURL(img.dataUrl); });
   update({
     cart: [...(s.cart || []), cartItem],

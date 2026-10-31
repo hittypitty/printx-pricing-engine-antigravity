@@ -14,7 +14,8 @@
  */
 
 import { update } from './store.js';
-import { DROPSHIP_RATES, DIGITAL_RATES } from '../modules/dropshipEngine.js';
+import { DROPSHIP_RATES } from '../modules/dropshipEngine.js';
+import { DIGITAL_MATERIALS } from '../modules/digitalEngine.js';
 
 const TECHS = ['fabric', 'uv_dtf', 'sublimation', 'dropship', 'digital'];
 const FORMATS = ['A4', 'A3', 'A2', 'Meters'];
@@ -30,10 +31,10 @@ export function readPrefill(search = window.location.search) {
   const qty = num(q.get('qty'));
 
   if (t === 'dropship' || t === 'digital') {
-    const rates = t === 'dropship' ? DROPSHIP_RATES : DIGITAL_RATES;
+    const rates = t === 'dropship' ? DROPSHIP_RATES : Object.fromEntries(DIGITAL_MATERIALS.map(m => [m.key, m.single]));
     const d = {};
     const v = q.get('variant');
-    if (v && rates[v] != null) d.variant = v;
+    if (v && rates[v] != null) { d.variant = v; if (t === 'digital') d.material = v; }
     if (qty) d.qty = Math.round(qty);
     if (num(q.get('weight'))) d.weight = num(q.get('weight'));
     if (Object.keys(d).length) out.dropshipPatch = { key: t, patch: d };

@@ -5,6 +5,14 @@
 
 import { subscribe, getState } from '../state/store.js';
 
+const fmt = n => Number(n).toLocaleString('en-IN', { maximumFractionDigits: 2 });
+function gstText(state) {
+  const parts = [];
+  if (state.gstAddTotal > 0) parts.push('GST 18% added: ₹' + fmt(state.gstAddTotal));
+  if (state.gstIncludedTotal > 0) parts.push('GST included: ₹' + fmt(state.gstIncludedTotal) + ' (base ₹' + fmt(state.gstBaseTotal) + ')');
+  return parts.join(' | ');
+}
+
 export function init(container) {
   container.innerHTML = buildHTML(getState());
   subscribe(state => updateDOM(container, state));
@@ -90,6 +98,7 @@ function buildHTML(state) {
                 ${hasCart ? 'Print: ' + state.printBreakdown : 'Print: ' + (state.isSheetFormat ? state.quantity + ' pcs × ₹' + state.rateApplied + ' / pc' : state.totalMeters.toFixed(2) + ' meters × ₹' + state.rateApplied + ' / m')}
               </div>
               <div class="breakdown-badge" id="breakdown-conversion-row" style="display: ${showConversion ? 'inline-block' : 'none'}; background: #e0e7ff; color: #4338ca;">Conv: ${state.conversionBreakdown}</div>
+              <div class="breakdown-badge" id="breakdown-gst-row" style="display: ${gstText(state) ? 'inline-block' : 'none'}; background: #dcfce7; color: #166534;">${gstText(state)}</div>
               <div class="breakdown-badge breakdown-delivery-badge" id="breakdown-delivery-row" style="display: ${state.deliveryMethod === 'pickup' ? 'none' : 'inline-block'};">Ship: ${state.deliveryMethod === 'transport' ? (state.shippingBreakdown || 'Local Transport') : (state.shippingBreakdown || state.partnerName) + ' + ₹' + state.packagingCost + ' Pkg'}</div>
             </div>
             <div id="breakdown-effective-rate" style="font-size: 12px; color: var(--text-muted); margin-top: 10px; display: ${(isDropship && !(state.printTechnology === 'digital' && state.autoSheets > 0)) ? 'none' : ''};">Effective print rate: ₹${effectiveRate} / sq in</div>
@@ -173,6 +182,13 @@ function updateDOM(container, state) {
     } else {
       bDelRow.textContent = 'Ship: ' + (state.shippingBreakdown || state.partnerName) + ' + ₹' + state.packagingCost + ' Pkg';
     }
+  }
+
+  const bGstRow = container.querySelector('#breakdown-gst-row');
+  if (bGstRow) {
+    const g = gstText(state);
+    bGstRow.style.display = g ? 'inline-block' : 'none';
+    bGstRow.textContent = g;
   }
 
   const bConvRow = container.querySelector('#breakdown-conversion-row');

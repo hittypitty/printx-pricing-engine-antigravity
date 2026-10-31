@@ -837,9 +837,10 @@ function updateDOM(container, state) {
           <div class="cart-item-details">
             <div class="cart-item-title">${item.printTechnology === 'digital' ? 'Digital' : 'Dropship'} — ${escapeHtml(item.variant)}</div>
             <div class="cart-item-sub">
-              <span>Qty: ${item.quantity} pcs × ₹${item.rate}</span>
+              <span>Qty: ${item.quantity} ${item.printTechnology === 'digital' ? 'sheets' : 'pcs × ₹' + item.rate}</span>
               <span>•</span>
               <span>Price: ₹${Math.ceil(item.printCost)}</span>
+              ${item.gstMode === 'add' ? `<span>•</span><span>+ GST ₹${item.gstAdd}</span>` : (item.gstMode === 'inclusive' ? '<span>•</span><span>GST incl.</span>' : '')}
               ${item.options ? `<span>•</span><span>${escapeHtml(item.options)}</span>` : ''}
             </div>
           </div>

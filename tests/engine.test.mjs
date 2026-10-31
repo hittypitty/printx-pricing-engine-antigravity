@@ -212,11 +212,96 @@ test('UV Double Sided: auto-pack from designs always uses A3 sheets', () => {
   if (q.isValid) { assert.equal(q.format, 'A3'); assert.equal(q.rateApplied, 472); }
 });
 
+// ---------------------------------------------------------------------------
+// Digital Printing — boss's spec (12×18 only)
+// ---------------------------------------------------------------------------
+const dg = await import('../js/modules/digitalEngine.js');
+const dq = (d, sheets) => dg.calcDigital({ ...dg.DIGITAL_DEFAULTS, ...d }, sheets);
+
+test('Digital: standard single / double rates per material', () => {
+  assert.equal(dq({ material: 'Paper 130 GSM' }, 10).subtotal, 250);
+  assert.equal(dq({ material: 'Paper 350 GSM', sides: 'Double side' }, 10).subtotal, 300);
+  assert.equal(dq({ material: 'NT 130 Micron' }, 2).subtotal, 100);
+  assert.equal(dq({ material: 'NT 130 Micron', sides: 'Double side' }, 2).subtotal, 110);
+  assert.equal(dq({ material: 'NT 300 Micron' }, 1).subtotal, 70);
+  assert.equal(dq({ material: 'NT 300 Micron', sides: 'Double side' }, 1).subtotal, 75);
+});
+test('Digital: MOQ is 1 sheet', () => {
+  assert.equal(dq({ material: 'Paper 300 GSM' }, 1).subtotal, 25);
+  assert.equal(dq({ material: 'Paper 300 GSM' }, 0).sheets, 1);
+});
+test('Digital: stickers are single side only and die-cut (₹25/sheet) + file setting (₹150) are compulsory', () => {
+  const r = dq({ material: 'Paper Sticker', sides: 'Double side' }, 10);
+  assert.equal(r.valid, true);
+  assert.equal(r.subtotal, 80 * 10 + 25 * 10 + 150);          // double side ignored for stickers
+  assert.equal(dq({ material: 'NT Sticker' }, 1).subtotal, 100 + 25 + 150);
+  assert.equal(dq({ material: 'Gold Sticker' }, 1).subtotal, 100 + 25 + 150);
+  assert.equal(dq({ material: 'Transparent Sticker' }, 4).subtotal, 90 * 4 + 25 * 4 + 150);
+});
+test('Digital: premium (Gold Foil / Spot UV) is the complete per-sheet price, die-cut & file setting included', () => {
+  assert.equal(dq({ material: 'Paper Sticker', premium: 'Gold Foil' }, 3).subtotal, 750);
+  assert.equal(dq({ material: 'NT Sticker', premium: 'Spot UV' }, 3).subtotal, 810);
+  assert.equal(dq({ material: 'Transparent Sticker', premium: 'Gold Foil' }, 3).subtotal, 780);
+  const n = dg.normalizeDigital({ material: 'Paper 300 GSM', premium: 'Gold Foil' });
+  assert.equal(n.premium, 'None');                              // not available on plain paper
+  assert.equal(dg.normalizeDigital({ material: 'Gold Sticker', premium: 'Spot UV' }).premium, 'None');
+});
+test('Digital: lamination tiers — ₹100/side/sheet under 10 sheets, ₹10 from 10 sheets, Velvet only 10+', () => {
+  const lam = (o, q) => dq({ material: 'Paper 300 GSM', ...o }, q).subtotal - 25 * q * (o.sides === 'Double side' ? 30 / 25 : 1);
+  assert.equal(dq({ lamination: 'Matt' }, 5).lines[1].amount, 500);                       // 5 sheets, single
+  assert.equal(dq({ lamination: 'Matt', sides: 'Double side' }, 5).lines[1].amount, 1000); // 5 sheets, double
+  assert.equal(dq({ lamination: 'Matt' }, 10).lines[1].amount, 100);
+  assert.equal(dq({ lamination: 'Matt', sides: 'Double side' }, 10).lines[1].amount, 200);
+  assert.equal(dq({ lamination: 'Velvet' }, 10).lines[1].amount, 100);
+  assert.equal(dq({ lamination: 'Gloss' }, 9).lines[1].amount, 900);
+  const v = dq({ lamination: 'Velvet' }, 5);
+  assert.equal(v.valid, false);
+  assert.match(v.error, /10 sheets/);
+  void lam;
+});
+test('Digital: lamination is available on every material (stickers / NT / premium)', () => {
+  assert.equal(dq({ material: 'NT Sticker', lamination: 'Gloss' }, 10).subtotal, 100 * 10 + 25 * 10 + 150 + 100);
+  assert.equal(dq({ material: 'Paper Sticker', premium: 'Gold Foil', lamination: 'Matt' }, 10).subtotal, 2500 + 100);
+  assert.equal(dq({ material: 'NT 300 Micron', lamination: 'Matt' }, 2).subtotal, 140 + 200);
+});
+test('Digital: optional die-cut on plain sheets pulls in file setting automatically', () => {
+  assert.equal(dq({ material: 'Paper 300 GSM', dieCut: true }, 10).subtotal, 250 + 250 + 150);
+  assert.equal(dq({ material: 'Paper 300 GSM', fileSetting: true }, 10).subtotal, 250 + 150);
+});
+test('Digital: GST — none by default, add 18%, or inclusive (never added twice)', () => {
+  const base = { material: 'NT Sticker', premium: 'Spot UV' };               // ₹270/sheet
+  // use a clean ₹1000 subtotal: 4 × Paper 130? -> craft: NT 300 Micron ₹70 × ... use direct check below
+  const none = dq({ ...base }, 4);
+  assert.equal(none.gstAdd, 0); assert.equal(none.gstIncluded, 0);
+  const add = dq({ ...base, gst: 'add' }, 4);                                  // ₹1080
+  assert.equal(add.subtotal, 1080);
+  assert.equal(add.gstAdd, 194.4);
+  assert.equal(add.totalExShipping, 1274.4);
+  const inc = dq({ ...base, gst: 'inclusive' }, 4);
+  assert.equal(inc.totalExShipping, 1080);                                     // customer pays the same
+  assert.equal(inc.gstIncluded + inc.gstBase, 1080);
+  assert.equal(inc.gstAdd, 0);
+  // the boss's own example: ₹1,000 inclusive -> GST ₹152.54, base ₹847.46
+  const eg = dq({ material: 'Paper 300 GSM', gst: 'inclusive' }, 40);         // 40 × ₹25 = ₹1000
+  assert.equal(eg.subtotal, 1000); assert.equal(eg.gstIncluded, 152.54); assert.equal(eg.gstBase, 847.46);
+  assert.equal(dq({ material: 'Paper 300 GSM', gst: 'add' }, 40).totalExShipping, 1180);
+});
+test('Digital: full quote — shipping stays separate (and untaxed); GST add is in the final total', () => {
+  const st = { printTechnology: 'digital', inputMode: 'manual', deliveryMethod: 'transport', digital: dg.normalizeDigital({ material: 'Paper 300 GSM', gst: 'add', qty: 40 }) };
+  const q = quote(st);
+  assert.equal(q.isValid, true);
+  assert.equal(q.printCost, 1000);
+  assert.equal(q.gstAddTotal, 180);
+  assert.equal(q.finalTotal, 1000 + 180 + q.shippingCost + q.packagingCost);
+  assert.match(q.quoteText, /GST \(18%\) added: ₹180/);
+  const inc = quote({ ...st, digital: dg.normalizeDigital({ ...st.digital, gst: 'inclusive' }) });
+  assert.equal(inc.finalTotal, 1000 + inc.shippingCost + inc.packagingCost);
+  assert.match(inc.quoteText, /GST Inclusive/);
+});
+test('Digital: invalid (Velvet under 10 sheets) is blocked in the quote', () => {
+  const q = quote({ printTechnology: 'digital', digital: dg.normalizeDigital({ material: 'Paper 300 GSM', lamination: 'Velvet', qty: 5 }) });
+  assert.equal(q.isValid, false);
+});
+
 console.log(`\n${passed} passed, ${failed} failed\n`);
 if (failed > 0) process.exit(1);
-
-test('Digital Printing (Paper): flat ₹250 per sheet, no placements', () => {
-  assert.equal(ds.lineTotal('Spot UV - Paper Sheet (Matt)', 4, {}, []).total, 1000);
-  assert.equal(ds.lineTotal('Gold Foil - Paper Sheet (Matt)', 1, { Front: 'A4' }, ['Puff DTF']).rate, 250);
-  assert.equal(ds.isApparel('Spot UV - Paper Sheet (Matt)'), false);
-});

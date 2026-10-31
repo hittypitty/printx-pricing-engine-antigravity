@@ -10,14 +10,25 @@
  * @param {object} state - Full computed state object
  * @returns {string} The formatted quote text
  */
+const fmtMoney = n => Number(n).toLocaleString('en-IN', { maximumFractionDigits: 2 });
+
 export function generateQuote(state) {
   const {
     format, pricingWidth, length, quantity,
     isSheetFormat, rateApplied, methodLabel,
     deliveryMethod, partnerName, shippingCost, countedWeight, eta,
     packagingCost, printCost, conversionCost, designCount, finalTotal,
-    printTechnology, uvPrintType, cart, dropshipItem
+    printTechnology, uvPrintType, cart, dropshipItem,
+    gstAddTotal, gstIncludedTotal, gstBaseTotal
   } = state;
+
+  // GST / Tax section (Digital Printing only; "Add" is charged on top, "Inclusive" is already inside the amount)
+  const gstLines = () => {
+    const out = [];
+    if (gstAddTotal > 0) out.push(`🧾 GST (18%) added: ₹${fmtMoney(gstAddTotal)}`);
+    if (gstIncludedTotal > 0) out.push(`🧾 GST Inclusive (18%): ₹${fmtMoney(gstIncludedTotal)} included in the amount (base ₹${fmtMoney(gstBaseTotal)})`);
+    return out;
+  };
 
   if (cart && cart.length > 0) {
     const lines = [];
@@ -45,6 +56,13 @@ export function generateQuote(state) {
     lines.push('🛒 *Items:*');
 
     cart.forEach((item, index) => {
+      if (item.printTechnology === 'digital' && item.digitalLines) {
+        lines.push(`${index + 1}. Digital Printing — ${item.variant} (12" × 18")`);
+        lines.push(`   • Sheets: ${item.quantity}`);
+        item.digitalLines.forEach(l => lines.push(`   • ${l.label}: ${l.amount ? '₹' + fmtMoney(l.amount) : (l.note || 'Included')}`));
+        lines.push(`   • Cost: ₹${Math.ceil(item.printCost)}`);
+        return;
+      }
       if (item.printTechnology === 'dropship' || item.printTechnology === 'digital') {
         lines.push(`${index + 1}. ${item.variant}`);
         if (item.options) lines.push(`   • Print: ${item.options}`);
@@ -83,6 +101,7 @@ export function generateQuote(state) {
     if (conversionCost > 0) {
       lines.push(`✨ Total Conversion Cost: ₹${Math.ceil(conversionCost)}`);
     }
+    gstLines().forEach(l => lines.push(l));
 
     if (deliveryMethod === 'pickup') {
       lines.push('🏢 Delivery: Office Pickup (Free)');
@@ -120,13 +139,22 @@ export function generateQuote(state) {
     lines.push(`Here is the quote for your ${printTechnology === 'digital' ? 'digital printing' : 'dropship'} requirement:`);
     lines.push(`🛍️ Product: ${dropshipItem.variant}`);
     if (dropshipItem.options) lines.push(`🖨️ Print: ${dropshipItem.options}`);
-    if (dropshipItem.autoSheets) {
-      lines.push(`📐 Designs: ${dropshipItem.autoPieces} piece(s) packed on ${dropshipItem.autoSheets} sheet(s)`);
-      lines.push(`📦 Sheets: ${dropshipItem.autoSheets} × ₹${dropshipItem.rate}`);
+    if (dropshipItem.digital) {
+      lines.push('📐 Sheet size: 12" × 18"');
+      if (dropshipItem.autoSheets) lines.push(`📐 Designs: ${dropshipItem.autoPieces} piece(s) packed on ${dropshipItem.autoSheets} sheet(s)`);
+      lines.push(`📦 Sheets: ${dropshipItem.qty}`);
+      dropshipItem.digital.lines.forEach(l => lines.push(`   • ${l.label}: ${l.amount ? '₹' + fmtMoney(l.amount) : (l.note || 'Included')}`));
+      lines.push(`💵 Subtotal: ₹${Math.ceil(printCost)}`);
+      gstLines().forEach(l => lines.push(l));
     } else {
-      lines.push(`📦 Quantity: ${dropshipItem.qty} piece(s) × ₹${dropshipItem.rate}`);
+      if (dropshipItem.autoSheets) {
+        lines.push(`📐 Designs: ${dropshipItem.autoPieces} piece(s) packed on ${dropshipItem.autoSheets} sheet(s)`);
+        lines.push(`📦 Sheets: ${dropshipItem.autoSheets} × ₹${dropshipItem.rate}`);
+      } else {
+        lines.push(`📦 Quantity: ${dropshipItem.qty} piece(s) × ₹${dropshipItem.rate}`);
+      }
+      lines.push(`💵 Product Cost: ₹${Math.ceil(printCost)}`);
     }
-    lines.push(`💵 Product Cost: ₹${Math.ceil(printCost)}`);
 
     if (deliveryMethod === 'pickup') {
       lines.push('🏢 Delivery: Office Pickup (Free)');

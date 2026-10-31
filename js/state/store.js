@@ -17,7 +17,7 @@ const state = {
   conversions: [], // Array of { id, type, qty }
   cart: [], // Array of cart items for mixed orders
   dropship: { variant: 'Sipper', qty: 1, placements: {}, addons: [], weight: 0.5 }, // current Dropship selection (printTechnology === 'dropship')
-  digital: { variant: 'Digital Paper Sheet', qty: 1, placements: {}, addons: [], weight: 0.3, sheetSize: '11x17', lamination: 'Matt', gsm: '300', sides: 'Single side', sticker: 'None' }, // current Digital Printing selection (printTechnology === 'digital')
+  digital: { variant: 'Paper 300 GSM', material: 'Paper 300 GSM', sides: 'Single side', premium: 'None', lamination: 'None', dieCut: false, fileSetting: false, gst: 'none', qty: 1, weight: 0.3 }, // current Digital Printing selection (printTechnology === 'digital')
   designCount: 0,
   deliveryMethod: 'pickup',
   selectedPartner: null,

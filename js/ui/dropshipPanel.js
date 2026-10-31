@@ -7,8 +7,12 @@
 import { getState, subscribe } from '../state/store.js';
 import { updateDropship, addToCart } from '../controller/appController.js';
 import {
-  baseRate, DIGITAL_RATES, DIGITAL_OPTIONS, DIGITAL_ADDONS, DIGITAL_DEFAULTS, digitalExtra, ADDONS, isApparel, placementsFor, groupedProducts, rateBreakdown, unitRate, lineTotal,
+  baseRate, ADDONS, isApparel, placementsFor, groupedProducts, rateBreakdown, unitRate, lineTotal,
 } from '../modules/dropshipEngine.js';
+import {
+  DIGITAL_MATERIALS, PREMIUM_FINISHES, LAMINATIONS, GST_MODES, LAMINATION_MOQ, DIE_CUT_RATE, FILE_SETTING_RATE,
+  DIGITAL_SHEET_LABEL, findMaterial, materialRateLabel, normalizeDigital, calcDigital,
+} from '../modules/digitalEngine.js';
 
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -27,23 +31,26 @@ export function init(container) {
   subscribe(state => {
     // Rebuild only when the structure changes (product / selections); keep typing focus otherwise.
     const d = current(state);
-    const shape = JSON.stringify([state.printTechnology, d.variant, d.placements, d.addons, d.sheetSize, d.lamination, d.gsm, d.sides, d.sticker, state.cart ? state.cart.length : 0]);
+    const shape = shapeOf(state, d);
     if (shape !== lastShape) render(d);
     else refreshSummary(d);
     syncAuto(state);
   });
 }
 
+// Rebuild the panel only when a structural choice changes (not while typing sheets / weight).
+const shapeOf = (state, d) => JSON.stringify([state.printTechnology, { ...d, qty: 0, weight: 0 }, state.cart ? state.cart.length : 0, (state.autoSheets || d.qty) >= LAMINATION_MOQ]);
+
 const isDigital = () => getState().printTechnology === 'digital';
 const current = state => (state.printTechnology === 'digital' ? state.digital : state.dropship);
 
 function render(d) {
   const hadFocus = mount.contains(document.activeElement) ? document.activeElement.id : null;
-  lastShape = JSON.stringify([getState().printTechnology, d.variant, d.placements, d.addons, d.sheetSize, d.lamination, d.gsm, d.sides, d.sticker, (getState().cart || []).length]);
+  lastShape = shapeOf(getState(), d);
   const apparel = isApparel(d.variant);
 
   const digital = isDigital();
-  const groups = digital ? [{ label: 'Digital Printing (Paper)', items: Object.keys(DIGITAL_RATES) }] : groupedProducts();
+  const groups = digital ? [] : groupedProducts();
   const productOptions = groups.map(g =>
     `<optgroup label="${esc(g.label)}">${g.items.map(n =>
       `<option value="${esc(n)}" ${n === d.variant ? 'selected' : ''}>${esc(n)} — ₹${baseRate(n)}</option>`).join('')}</optgroup>`
@@ -79,7 +86,7 @@ function render(d) {
             <line x1="3" y1="6" x2="21" y2="6"></line>
             <path d="M16 10a4 4 0 0 1-8 0"></path>
           </svg>
-          ${digital ? 'Digital Printing (Paper)' : 'Dropship Product'}
+          ${digital ? 'Digital Printing' : 'Dropship Product'}
         </h2>
       </div>
       <div class="card-body">
@@ -98,7 +105,7 @@ function render(d) {
             <input type="number" class="input-field" min="0" step="0.05" value="${esc(d.weight)}" data-ds="weight" id="ds-weight" />
           </div>
         </div>
-        ${digital ? digitalAddons(d) : placementRows}
+        ${digital ? digitalExtras(d) : placementRows}
         <div class="ds-summary" id="ds-summary"></div>
         <button type="button" class="btn btn-primary" data-ds="add" id="ds-add" style="width: 100%; margin-top: var(--space-lg); font-weight: 600;">+ Add to Quote</button>
       </div>
@@ -109,20 +116,68 @@ function render(d) {
 }
 
 function digitalSpecs(d) {
-  return Object.entries(DIGITAL_OPTIONS).map(([key, o]) => `
-    <div style="flex: 1 1 45%; min-width: 150px;">
-      <label class="field-label">${o.label}</label>
-      <select class="input-field" data-ds="spec" data-key="${key}" id="ds-spec-${key}">
-        ${o.choices.map(c => `<option value="${esc(c.v)}" ${(d[key] ?? DIGITAL_DEFAULTS[key]) === c.v ? 'selected' : ''}>${esc(c.t)}${c.extra ? ' (+₹' + c.extra + ')' : ''}</option>`).join('')}
+  const m = findMaterial(d.material);
+  const groups = ['Paper', 'NT', 'Stickers'].map(g => `<optgroup label="${g === 'Stickers' ? 'Stickers (die-cut included)' : g}">${
+    DIGITAL_MATERIALS.filter(x => x.group === g).map(x =>
+      `<option value="${esc(x.key)}" ${x.key === m.key ? 'selected' : ''}>${esc(x.key)} — ${materialRateLabel(x)}</option>`).join('')}</optgroup>`).join('');
+  return `
+    <div style="flex: 1 1 60%; min-width: 200px;">
+      <label class="field-label">MATERIAL <span class="ds-sub">(₹ per sheet: single / double)</span></label>
+      <select class="input-field" data-ds="spec" data-key="material" id="ds-spec-material">${groups}</select>
+    </div>
+    <div style="flex: 1 1 30%; min-width: 140px;">
+      <label class="field-label">PRINT SIDES</label>
+      <select class="input-field" data-ds="spec" data-key="sides" id="ds-spec-sides">
+        <option value="Single side" ${d.sides === 'Single side' ? 'selected' : ''}>Single side</option>
+        <option value="Double side" ${d.sides === 'Double side' ? 'selected' : ''} ${m.double == null ? 'disabled' : ''}>Double side${m.double == null ? ' (not for stickers)' : ''}</option>
       </select>
-    </div>`).join('');
+    </div>
+    <div style="flex: 1 1 30%; min-width: 120px;">
+      <label class="field-label">SHEET SIZE</label>
+      <input type="text" class="input-field" value="${esc(DIGITAL_SHEET_LABEL)}" disabled id="ds-sheet-size" />
+    </div>`;
 }
 
-function digitalAddons(d) {
-  return `<div class="ds-block">
-      <label class="field-label">ADD-ON</label>
+function digitalExtras(d) {
+  const m = findMaterial(d.material);
+  const premiumOn = d.premium !== 'None';
+  const sheets = (getState().autoSheets || d.qty);
+  const premiumBlock = m.premium ? `
+    <div class="ds-block">
+      <label class="field-label">PREMIUM FINISH <span class="ds-sub">(one only — ₹${m.premium} / sheet, includes die-cut &amp; file setting)</span></label>
       <div class="chip-group">
-        ${DIGITAL_ADDONS.map(a => `<button type="button" class="chip ${(d.addons || []).includes(a.value) ? 'active' : ''}" data-ds="addon" data-value="${esc(a.value)}">${esc(a.value)}${a.extra ? ' (+₹' + a.extra + ')' : ''}</button>`).join('')}
+        <button type="button" class="chip ${!premiumOn ? 'active' : ''}" data-ds="premium" data-value="None">None</button>
+        ${PREMIUM_FINISHES.map(f => `<button type="button" class="chip ${d.premium === f ? 'active' : ''}" data-ds="premium" data-value="${esc(f)}">${esc(f)}</button>`).join('')}
+      </div>
+    </div>` : '';
+  return `
+    ${premiumBlock}
+    <div class="ds-row" style="margin-top: var(--space-lg);">
+      <div style="flex: 1 1 45%; min-width: 160px;">
+        <label class="field-label">LAMINATION <span class="ds-sub">(per side, per sheet)</span></label>
+        <select class="input-field" data-ds="spec" data-key="lamination" id="ds-spec-lamination">
+          ${LAMINATIONS.map(l => `<option value="${l}" ${d.lamination === l ? 'selected' : ''} ${l === 'Velvet' && sheets < LAMINATION_MOQ ? 'disabled' : ''}>${
+            l === 'None' ? 'No lamination' : l === 'Velvet' ? `Velvet (${LAMINATION_MOQ}+ sheets only)` : l}</option>`).join('')}
+        </select>
+      </div>
+      <div style="flex: 1 1 45%; min-width: 160px;">
+        <label class="field-label">GST / TAX</label>
+        <select class="input-field" data-ds="spec" data-key="gst" id="ds-spec-gst">
+          ${GST_MODES.map(g => `<option value="${g.v}" ${d.gst === g.v ? 'selected' : ''}>${esc(g.t)}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div class="ds-block">
+      <label class="field-label">FINISHING</label>
+      <div class="chip-group">
+        <label class="chip ${d.dieCut ? 'active' : ''}" style="cursor: ${m.sticker ? 'default' : 'pointer'};">
+          <input type="checkbox" data-ds="flag" data-key="dieCut" id="ds-flag-dieCut" ${d.dieCut ? 'checked' : ''} ${m.sticker ? 'disabled' : ''} style="display:none;" />
+          Plotter die-cut ${premiumOn ? '(included)' : '(+₹' + DIE_CUT_RATE + ' / sheet' + (m.sticker ? ', compulsory' : '') + ')'}
+        </label>
+        <label class="chip ${d.fileSetting ? 'active' : ''}" style="cursor: ${d.dieCut ? 'default' : 'pointer'};">
+          <input type="checkbox" data-ds="flag" data-key="fileSetting" id="ds-flag-fileSetting" ${d.fileSetting ? 'checked' : ''} ${d.dieCut ? 'disabled' : ''} style="display:none;" />
+          File setting ${premiumOn ? '(included)' : '(+₹' + FILE_SETTING_RATE + ' / order' + (d.dieCut ? ', auto with die-cut' : '') + ')'}
+        </label>
       </div>
     </div>`;
 }
@@ -146,14 +201,28 @@ function syncAuto(state) {
 function refreshSummary(d) {
   const box = mount && mount.querySelector('#ds-summary');
   if (!box) return;
-  const extra = isDigital() ? digitalExtra(d) : 0;
-  const rows = rateBreakdown(d.variant, d.placements, d.addons, extra);
   const st = getState();
   const eff = st.printTechnology === 'digital' && st.autoSheets ? st.autoSheets : d.qty;
-  const { qty, rate, total } = lineTotal(d.variant, eff, d.placements, d.addons, extra);
+  if (isDigital()) {
+    const r = calcDigital(d, eff);
+    if (!r.valid) {
+      box.innerHTML = `<div class="ds-line" style="color:#dc2626;"><span>⚠ ${esc(r.error)}</span></div>`;
+      return;
+    }
+    const money = n => Number(n).toLocaleString('en-IN', { maximumFractionDigits: 2 });
+    box.innerHTML = `
+      ${r.lines.map(l => `<div class="ds-line"><span>${esc(l.label)}</span><span>${l.amount ? '₹' + money(l.amount) : esc(l.note || 'Included')}</span></div>`).join('')}
+      <div class="ds-line ds-rate"><span>Subtotal (${r.sheets} sheet${r.sheets > 1 ? 's' : ''})</span><span>₹${money(r.subtotal)}</span></div>
+      ${r.gstMode === 'add' ? `<div class="ds-line"><span>GST 18% (added)</span><span>₹${money(r.gstAdd)}</span></div>` : ''}
+      ${r.gstMode === 'inclusive' ? `<div class="ds-line"><span>GST 18% included (base ₹${money(r.gstBase)})</span><span>₹${money(r.gstIncluded)}</span></div>` : ''}
+      <div class="ds-line ds-total"><span>${r.gstMode === 'add' ? 'Total with GST' : 'Total'} <span class="ds-sub">(shipping extra)</span></span><span>₹${money(r.totalExShipping)}</span></div>`;
+    return;
+  }
+  const rows = rateBreakdown(d.variant, d.placements, d.addons, 0);
+  const { qty, rate, total } = lineTotal(d.variant, eff, d.placements, d.addons, 0);
   box.innerHTML = `
     ${rows.map(r => `<div class="ds-line"><span>${esc(r.label)}</span><span>${r.amount ? '₹' + r.amount : 'FREE'}</span></div>`).join('')}
-    <div class="ds-line ds-rate"><span>Rate per piece</span><span>₹${unitRate(d.variant, d.placements, d.addons, extra)}</span></div>
+    <div class="ds-line ds-rate"><span>Rate per piece</span><span>₹${unitRate(d.variant, d.placements, d.addons, 0)}</span></div>
     <div class="ds-line ds-total"><span>${qty} pc × ₹${rate}</span><span>₹${total}</span></div>`;
 }
 
@@ -161,7 +230,9 @@ function onChange(e) {
   const t = e.target.closest('[data-ds]');
   if (!t) return;
   const d = current(getState());
-  if (t.dataset.ds === 'spec') {
+  if (t.dataset.ds === 'flag') {
+    updateDropship({ [t.dataset.key]: t.checked });
+  } else if (t.dataset.ds === 'spec') {
     updateDropship({ [t.dataset.key]: t.value });
   } else if (t.dataset.ds === 'variant') {
     updateDropship({ variant: t.value, placements: {}, addons: [] });
@@ -183,14 +254,13 @@ function onClick(e) {
   const t = e.target.closest('[data-ds]');
   if (!t) return;
   const d = current(getState());
-  if (t.dataset.ds === 'addon') {
+  if (t.dataset.ds === 'premium') {
+    // Gold Foil OR Spot UV — one at a time; None clears it
+    updateDropship({ premium: t.dataset.value });
+  } else if (t.dataset.ds === 'addon') {
     const v = t.dataset.value;
     const has = (d.addons || []).includes(v);
-    // Digital: only one add-on at a time (Spot UV OR Gold Foil). Dropship garments can stack add-ons.
-    const addons = isDigital()
-      ? (has ? [] : [v])
-      : (has ? d.addons.filter(a => a !== v) : [...d.addons, v]);
-    updateDropship({ addons });
+    updateDropship({ addons: has ? d.addons.filter(a => a !== v) : [...d.addons, v] });
   } else if (t.dataset.ds === 'add') {
     addToCart();
   }

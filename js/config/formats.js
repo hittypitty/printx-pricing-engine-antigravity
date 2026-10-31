@@ -30,11 +30,9 @@ export const FORMATS = {
  */
 /** Digital Printing (paper) sheet sizes, inches (width × length). Chosen in the Digital panel. */
 export const DIGITAL_SHEETS = {
-  '11x17': { w: 11, h: 17, label: '11" × 17"' },
-  '12x18': { w: 12, h: 18, label: '12" × 18"' },
-  '13x19': { w: 13, h: 19, label: '13" × 19"' },
+  '12x18': { w: 12, h: 18, label: '12" × 18"' },   // Digital Printing is 12 × 18 only
 };
-export const DEFAULT_DIGITAL_SHEET = '11x17';
+export const DEFAULT_DIGITAL_SHEET = '12x18';
 let activeDigitalSheet = DEFAULT_DIGITAL_SHEET;
 export function setActiveDigitalSheet(key) { activeDigitalSheet = DIGITAL_SHEETS[key] ? key : DEFAULT_DIGITAL_SHEET; }
 export function getDigitalSheet(key) { return DIGITAL_SHEETS[key || activeDigitalSheet] || DIGITAL_SHEETS[DEFAULT_DIGITAL_SHEET]; }

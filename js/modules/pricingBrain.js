@@ -17,7 +17,8 @@ import {
   calculateUVDTFA3EquivalentSheets,
 } from './deliveryEngine.js';
 import { generateQuote } from './quoteGenerator.js';
-import { lineTotal, describeOptions, isCatalogTech, digitalExtra, describeDigital } from './dropshipEngine.js';
+import { lineTotal, describeOptions, isCatalogTech } from './dropshipEngine.js';
+import { calcDigital } from './digitalEngine.js';
 import {
   getPrintableWidthFor,
   getImageWidthLimitFor,
@@ -153,6 +154,7 @@ const ZERO_RESULT = {
   shippingCost: 0, partnerName: '', countedWeight: 0, eta: '',
   shippingBreakdown: '', allPartnerResults: [], recommendedPartner: null,
   finalTotal: 0, quoteText: '',
+  gstMode: 'none', gstAddTotal: 0, gstIncludedTotal: 0, gstBaseTotal: 0,
 };
 
 /**
@@ -256,7 +258,11 @@ export function calculateCart(cart, deliveryMethod, courierFilter, selectedPartn
   const combinedWeightVal = uvWeight + fabricWeight + dropshipWeight;
   const delivery = resolveDelivery({ deliveryMethod, courierFilter, selectedPartner }, totalRunningMeters, 1, combinedWeightVal, config);
 
-  const finalTotal = Math.ceil(totalPrintCost + totalConversionCost + delivery.packagingCost + delivery.shippingCost);
+  // Digital lines carry their own GST choice: "Add GST" lines are taxed on top, "Inclusive" lines are info only.
+  const gstAddTotal = Math.round(cart.reduce((sum, item) => sum + (Number(item.gstAdd) || 0), 0) * 100) / 100;
+  const gstIncludedTotal = Math.round(cart.reduce((sum, item) => sum + (Number(item.gstIncluded) || 0), 0) * 100) / 100;
+  const gstBaseTotal = Math.round(cart.reduce((sum, item) => sum + (item.gstMode === 'inclusive' ? (Number(item.gstBase) || 0) : 0), 0) * 100) / 100;
+  const finalTotal = Math.ceil(totalPrintCost + totalConversionCost + gstAddTotal + delivery.packagingCost + delivery.shippingCost);
 
   // Print breakdown for cart
   const printBreakdown = cart.map(item => {
@@ -287,7 +293,11 @@ export function calculateCart(cart, deliveryMethod, courierFilter, selectedPartn
     conversionBreakdown,
     ...delivery,
     finalTotal,
-    effectiveRate
+    effectiveRate,
+    gstMode: gstAddTotal > 0 ? 'add' : (gstIncludedTotal > 0 ? 'inclusive' : 'none'),
+    gstAddTotal,
+    gstIncludedTotal,
+    gstBaseTotal
   };
 }
 
@@ -697,7 +707,7 @@ function calculateAutoQuote(s, config) {
 function calculateDropshipQuote(s, config) {
   const tech = s.printTechnology === 'digital' ? 'digital' : 'dropship';
   const d = s[tech] || {};
-  if (tech === 'digital') setActiveDigitalSheet(d.sheetSize);
+  if (tech === 'digital') setActiveDigitalSheet('12x18');
   const sheet = getDigitalSheet(tech === 'digital' ? d.sheetSize : undefined);
   const DIGITAL_SHEET_W = sheet.w;
   const DIGITAL_SHEET_H = sheet.h;
@@ -720,11 +730,20 @@ function calculateDropshipQuote(s, config) {
       autoPieces = items.reduce((n, it) => n + (Number(it.quantity) || 1), 0);
     }
   }
-  const { qty, rate, total } = lineTotal(d.variant, autoSheets || d.qty, d.placements, d.addons, tech === 'digital' ? digitalExtra(d) : 0);
+  let qty, rate, total, options, breakdown, dig = null;
+  if (tech === 'digital') {
+    dig = calcDigital(d, autoSheets || d.qty);
+    if (!dig.valid) return buildInvalid(dig.error, s, config);
+    qty = dig.sheets; rate = dig.rate; total = dig.subtotal; options = dig.options; breakdown = dig.breakdown;
+  } else {
+    ({ qty, rate, total } = lineTotal(d.variant, autoSheets || d.qty, d.placements, d.addons, 0));
+    options = describeOptions(d.placements, d.addons);
+    breakdown = `${d.variant} × ${qty} @ ₹${rate} / pc`;
+  }
   const weight = Math.max(0, Number(d.weight) || 0);
   const delivery = resolveDelivery(s, 0, qty, weight, config);
-  const finalTotal = Math.ceil(total + delivery.packagingCost + delivery.shippingCost);
-  const options = tech === 'digital' ? describeDigital(d) : describeOptions(d.placements, d.addons);
+  const gstAdd = dig ? dig.gstAdd : 0;
+  const finalTotal = Math.ceil(total + gstAdd + delivery.packagingCost + delivery.shippingCost);
 
   const result = {
     isValid: true,
@@ -733,11 +752,15 @@ function calculateDropshipQuote(s, config) {
     effectiveRate: '0.00',
     rateApplied: rate,
     methodLabel: tech === 'digital' ? 'Digital Printing' : 'Dropship',
-    printBreakdown: `${d.variant} × ${qty} @ ₹${rate} / pc`,
+    printBreakdown: breakdown,
     conversionCost: 0,
     conversionBreakdown: '',
     ...delivery,
     finalTotal,
+    gstMode: dig ? dig.gstMode : 'none',
+    gstAddTotal: gstAdd,
+    gstIncludedTotal: dig ? dig.gstIncluded : 0,
+    gstBaseTotal: dig ? dig.gstBase : 0,
     activePrintCost: total,
     activeConversionCost: 0,
     printTechnology: s.printTechnology,
@@ -751,7 +774,7 @@ function calculateDropshipQuote(s, config) {
     stickersPerSheet: autoSheets ? Math.ceil(autoPieces / autoSheets) : 0,
     effectiveRate: autoSheets ? (total / (autoSheets * DIGITAL_SHEET_W * DIGITAL_SHEET_H)).toFixed(2) : '0.00',
     dropshipRate: rate,
-    dropshipItem: { variant: d.variant, qty, rate, total, options, autoSheets, autoPieces },
+    dropshipItem: { variant: d.variant, qty, rate, total, options, autoSheets, autoPieces, digital: dig },
   };
 
   return finalize(result, s, config);

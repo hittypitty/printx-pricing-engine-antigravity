@@ -6,7 +6,6 @@
  *   • core rates      → pricing / uvDtfPricing / formats / couriers / weights   (configStore)
  *   • Sublimation     → sublimationPricing
  *   • Dropship items  → DROPSHIP_RATES (+ sub-category / MOQ)  — new, renamed and removed products follow the ERP
- *   • Digital paper   → DIGITAL_RATES
  * It checks again every 20 seconds, when the tab is shown again and when the internet comes back.
  * The last good copy is cached in the browser so the calculator still works offline.
  *
@@ -16,7 +15,7 @@
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../config/supabase.js';
 import { updateConfig } from '../state/configStore.js';
 import { getState, update } from '../state/store.js';
-import { DROPSHIP_RATES, DROPSHIP_META, DIGITAL_RATES } from './dropshipEngine.js';
+import { DROPSHIP_RATES, DROPSHIP_META } from './dropshipEngine.js';
 import { recalculate } from '../controller/appController.js';
 
 const POLL_MS = 20000;
@@ -109,8 +108,7 @@ export function applyErpConfig(cfg) {
     });
   }
 
-  // 4. Digital printing (paper) rates — keep the built-in "Digital Paper Sheet" default, add/update the ERP ones
-  rateList(other['Digital Printing (Paper)']).forEach(r => { DIGITAL_RATES[r.variant] = Number(r.rate); });
+  // (Digital Printing rates are fixed inside the calculator — see modules/digitalEngine.js)
 
   // 5. Make sure the current selection still exists, then refresh the screen
   const s = getState();
@@ -118,9 +116,6 @@ export function applyErpConfig(cfg) {
   if (s.dropship && !(s.dropship.variant in DROPSHIP_RATES)) {
     const first = Object.keys(DROPSHIP_RATES)[0];
     if (first) patch.dropship = { ...s.dropship, variant: first };
-  }
-  if (s.digital && s.digital.variant && !(s.digital.variant in DIGITAL_RATES)) {
-    patch.digital = { ...s.digital, variant: Object.keys(DIGITAL_RATES)[0] };
   }
   if (Object.keys(patch).length) update(patch);
   recalculate();
