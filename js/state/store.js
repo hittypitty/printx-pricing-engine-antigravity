@@ -17,7 +17,7 @@ const state = {
   conversions: [], // Array of { id, type, qty }
   cart: [], // Array of cart items for mixed orders
   dropship: { variant: 'Sipper', qty: 1, placements: {}, addons: [], weight: 0.5 }, // current Dropship selection (printTechnology === 'dropship')
-  digital: { variant: 'Paper 300 GSM', material: 'Paper 300 GSM', sides: 'Single side', premium: 'None', lamination: 'None', dieCut: false, fileSetting: false, qty: 1, weight: 0.3 }, // current Digital Printing selection (printTechnology === 'digital')
+  digital: { variant: 'Paper 300 GSM', material: 'Paper 300 GSM', sides: 'Single side', premium: 'None', lamination: 'None', dieCut: false, handCut: false, fileSetting: false, qty: 1, weight: 0.3 }, // current Digital Printing selection (printTechnology === 'digital')
   designCount: 0,
   gstMode: 'none', // 'none' | 'add' | 'inclusive' — optional 18% GST for any technology
   deliveryMethod: 'pickup',

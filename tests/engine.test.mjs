@@ -320,5 +320,15 @@ test('Digital: invalid (Velvet under 10 sheets) is blocked in the quote', () => 
   assert.equal(q.isValid, false);
 });
 
+test('Digital: hand cut is ₹50/sheet and does not auto-add file setting; exclusive with die-cut', () => {
+  const r = dq({ material: 'Paper 300 GSM', handCut: true }, 10);
+  assert.equal(r.subtotal, 250 + 500);
+  assert.equal(dg.normalizeDigital({ material: 'Paper 300 GSM', handCut: true }).fileSetting, false);
+  assert.equal(dq({ material: 'Paper 300 GSM', handCut: true, fileSetting: true }, 10).subtotal, 250 + 500 + 150);
+  const both = dg.normalizeDigital({ material: 'Paper 300 GSM', handCut: true, dieCut: true });
+  assert.equal(both.handCut, false);
+  assert.equal(dg.normalizeDigital({ material: 'NT Sticker', handCut: true }).handCut, false);
+});
+
 console.log(`\n${passed} passed, ${failed} failed\n`);
 if (failed > 0) process.exit(1);

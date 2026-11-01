@@ -13,6 +13,7 @@
  *      10+ sheets  : Gloss / Matt / Velvet ₹10
  *  • Sticker sheet rates already INCLUDE plotter die-cut + file setting (boss confirmed). For non-sticker
  *    materials, optional die-cut is ₹25 / sheet and file setting ₹150 / order (auto with die-cut).
+ *    Hand cut (non-sticker) is ₹50 / sheet and does NOT switch file setting on automatically.
  *    Premium prints include both too (not charged twice).
  *  • Regular printing MOQ: 1 sheet.
  *  • GST is a separate, global option (see gstEngine.js) that works for every technology. Shipping is always separate.
@@ -40,10 +41,11 @@ export const LAMINATION_RATE_LOW_QTY = 100;     // ₹ per side per sheet, 1–9
 export const LAMINATION_RATE_BULK = 10;         // ₹ per side per sheet, 10+ sheets
 export const DIE_CUT_RATE = 25;                 // ₹ per sheet
 export const FILE_SETTING_RATE = 150;           // ₹ per order
+export const HAND_CUT_RATE = 50;                // ₹ per sheet (manual cutting; no automatic file setting)
 
 export const DIGITAL_DEFAULTS = {
   material: 'Paper 300 GSM', sides: 'Single side', premium: 'None', lamination: 'None',
-  dieCut: false, fileSetting: false,
+  dieCut: false, handCut: false, fileSetting: false,
 };
 
 export const findMaterial = key => DIGITAL_MATERIALS.find(m => m.key === key) || DIGITAL_MATERIALS[1];
@@ -57,8 +59,10 @@ export function normalizeDigital(d = {}) {
   if (m.double == null) out.sides = 'Single side';
   if (!m.premium || !PREMIUM_FINISHES.includes(out.premium)) out.premium = 'None';
   if (!LAMINATIONS.includes(out.lamination)) out.lamination = 'None';
-  if (m.sticker) out.dieCut = true;                      // sticker die-cut is compulsory
-  if (out.dieCut) out.fileSetting = true;                // file setting is automatic with die-cut
+  if (m.sticker) { out.dieCut = true; out.handCut = false; }   // sticker die-cut is compulsory (rate includes it)
+  if (out.dieCut) out.handCut = false;                   // die-cut and hand cut are exclusive
+  if (!m.sticker && out.premium !== 'None') out.handCut = false;
+  if (out.dieCut) out.fileSetting = true;                // file setting is automatic with die-cut (NOT with hand cut)
   return out;
 }
 
@@ -109,6 +113,7 @@ export function calcDigital(d, sheets) {
     if (sel.fileSetting) lines.push({ label: 'File setting', amount: 0, note: 'Included' });
   } else {
     if (sel.dieCut) lines.push({ label: `Plotter die-cut (${qty} × ₹${DIE_CUT_RATE})`, amount: DIE_CUT_RATE * qty });
+    if (sel.handCut) lines.push({ label: `Hand cut (${qty} × ₹${HAND_CUT_RATE})`, amount: HAND_CUT_RATE * qty });
     if (sel.fileSetting) lines.push({ label: 'File setting', amount: FILE_SETTING_RATE });
   }
 
@@ -118,6 +123,7 @@ export function calcDigital(d, sheets) {
   if (premium) parts.push(sel.premium);
   if (sel.lamination !== 'None') parts.push(`${sel.lamination} lamination`);
   if (sel.dieCut) parts.push('Plotter die-cut');
+  if (sel.handCut) parts.push('Hand cut');
   parts.push(DIGITAL_SHEET_LABEL);
 
   return {

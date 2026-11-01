@@ -309,6 +309,8 @@ export function updateDropship(partial) {
   const merged = { ...s[key], ...partial };
   // Turning die-cut off also drops the automatic file setting (it can still be ticked on its own)
   if (key === 'digital' && partial.dieCut === false && partial.fileSetting === undefined) merged.fileSetting = false;
+  // Hand cut replaces die-cut, and (unlike die-cut) does not bring file setting along
+  if (key === 'digital' && partial.handCut === true) { merged.dieCut = false; if (partial.fileSetting === undefined) merged.fileSetting = false; }
   update({ [key]: key === 'digital' ? normalizeDigital(merged) : merged });
   recalculate();
 }
