@@ -772,7 +772,9 @@ input[type="number"] {
 .ds-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: var(--space-md); }
 .ds-sub { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; }
 .ds-summary { margin-top: var(--space-lg); padding: var(--space-md); border: 1px solid var(--border-color); border-radius: 10px; background: var(--bg-input); }
-.ds-line { display: flex; justify-content: space-between; font-size: 13px; color: var(--text-secondary); padding: 3px 0; }
+.ds-line { display: flex; justify-content: space-between; align-items: baseline; gap: 20px; font-size: 13px; color: var(--text-secondary); padding: 3px 0; }
+.ds-line > span:first-child { flex: 1 1 auto; min-width: 0; }
+.ds-line > span:last-child { flex: 0 0 auto; white-space: nowrap; font-variant-numeric: tabular-nums; text-align: right; }
 .ds-rate { border-top: 1px dashed var(--border-color); margin-top: 6px; padding-top: 8px; font-weight: 600; color: var(--text-primary); }
 .ds-total { font-weight: 700; color: var(--accent-purple); font-size: 15px; }
 

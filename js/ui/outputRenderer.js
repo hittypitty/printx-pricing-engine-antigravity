@@ -108,7 +108,7 @@ function buildHTML(state) {
           <div class="breakdown-section" style="margin-bottom: 0;">
             <div class="breakdown-title" style="font-size: 15px; color: var(--text-secondary); margin-bottom: 12px; font-weight: 500;">Cost Breakdown</div>
             <div style="display: flex; flex-direction: column; gap: 8px;">
-              <div id="breakdown-digital" class="ds-summary" style="display: ${digitalBreakdownHTML(state) ? 'block' : 'none'}; min-width: 240px;">${digitalBreakdownHTML(state)}</div>
+              <div id="breakdown-digital" class="ds-summary" style="display: ${digitalBreakdownHTML(state) ? 'block' : 'none'}; min-width: 280px;">${digitalBreakdownHTML(state)}</div>
               <div class="breakdown-badge breakdown-print-badge" id="breakdown-print" style="display: ${digitalBreakdownHTML(state) ? 'none' : ''};">
                 ${hasCart ? 'Print: ' + state.printBreakdown : 'Print: ' + (state.isSheetFormat ? state.quantity + ' pcs × ₹' + state.rateApplied + ' / pc' : state.totalMeters.toFixed(2) + ' meters × ₹' + state.rateApplied + ' / m')}
               </div>
