@@ -5,9 +5,23 @@
 
 import { subscribe, getState } from '../state/store.js';
 
+const esc = t => String(t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+// Digital Printing: every price line, GST and the total, shown inside Decision & Calculation
+function digitalBreakdownHTML(state) {
+  const d = state.digitalSummary;
+  if (!d || state.printTechnology !== 'digital' || (state.cart && state.cart.length > 0)) return '';
+  const row = (label, val, cls = '') => `<div class="ds-line ${cls}"><span>${esc(label)}</span><span>${val}</span></div>`;
+  const rows = d.lines.map(l => row(l.label, l.amount ? '₹' + fmt(l.amount) : esc(l.note || 'Included'))).join('');
+  let gst = '';
+  if (state.gstAddTotal > 0) gst = row('GST 18% (added)', '₹' + fmt(state.gstAddTotal));
+  else if (state.gstIncludedTotal > 0) gst = row('GST 18% included (base ₹' + fmt(state.gstBaseTotal) + ')', '₹' + fmt(state.gstIncludedTotal));
+  return `${rows}${row('Subtotal (' + d.sheets + ' sheet' + (d.sheets > 1 ? 's' : '') + ')', '₹' + fmt(d.subtotal), 'ds-rate')}${gst}`;
+}
+
 const fmt = n => Number(n).toLocaleString('en-IN', { maximumFractionDigits: 2 });
 function gstText(state) {
   const parts = [];
+  if (digitalBreakdownHTML(state)) return '';   // Digital shows its GST line inside the breakdown block
   if (state.gstAddTotal > 0) parts.push('GST 18% added: ₹' + fmt(state.gstAddTotal));
   if (state.gstIncludedTotal > 0) parts.push('GST included: ₹' + fmt(state.gstIncludedTotal) + ' (base ₹' + fmt(state.gstBaseTotal) + ')');
   return parts.join(' | ');
@@ -32,13 +46,13 @@ function buildHTML(state) {
     : (isUVAuto ? 'Sheets Required' : (state.isSheetFormat ? 'Quantity' : 'Total Running'));
   const metricValueText = hasCart
     ? `${state.cart.length} item(s)`
-    : (isUVAuto && state.printTechnology === 'digital' ? `${state.autoSheets} sheets` : isDropship ? `${state.dropshipQty || 0} pcs` : (isUVAuto ? `${state.quantity} sheets` : (state.isSheetFormat ? state.quantity + ' pcs' : state.totalMeters.toFixed(3) + 'm')));
+    : (isUVAuto && state.printTechnology === 'digital' ? `${state.autoSheets} sheets` : isDropship ? `${state.dropshipQty || 0} ${state.printTechnology === 'digital' ? 'sheets' : 'pcs'}` : (isUVAuto ? `${state.quantity} sheets` : (state.isSheetFormat ? state.quantity + ' pcs' : state.totalMeters.toFixed(3) + 'm')));
   const isAuto = state.inputMode === 'image' || state.inputMode === 'manual-size';
   const metricSubText = hasCart
     ? `${state.cart.reduce((sum, item) => sum + (item.isSheetFormat ? item.quantity : 1), 0)} items total`
-    : (isUVAuto && state.printTechnology === 'digital' ? `${state.stickersPerSheet || 0} pcs / sheet`
+    : (isUVAuto && state.printTechnology === 'digital' ? `${state.stickersPerSheet || 0} pcs / sheet · @ ₹${state.dropshipRate || 0} / sheet`
       : isDropship
-      ? '@ ₹' + (state.dropshipRate || 0) + ' / pc'
+      ? '@ ₹' + (state.dropshipRate || 0) + (state.printTechnology === 'digital' ? ' / sheet' : ' / pc')
       : isAuto
         ? (state.printTechnology === 'uv_dtf'
             ? `${state.stickersPerSheet || 0} pcs / sheet`
@@ -94,7 +108,8 @@ function buildHTML(state) {
           <div class="breakdown-section" style="margin-bottom: 0;">
             <div class="breakdown-title" style="font-size: 15px; color: var(--text-secondary); margin-bottom: 12px; font-weight: 500;">Cost Breakdown</div>
             <div style="display: flex; flex-direction: column; gap: 8px;">
-              <div class="breakdown-badge breakdown-print-badge" id="breakdown-print">
+              <div id="breakdown-digital" class="ds-summary" style="display: ${digitalBreakdownHTML(state) ? 'block' : 'none'}; min-width: 240px;">${digitalBreakdownHTML(state)}</div>
+              <div class="breakdown-badge breakdown-print-badge" id="breakdown-print" style="display: ${digitalBreakdownHTML(state) ? 'none' : ''};">
                 ${hasCart ? 'Print: ' + state.printBreakdown : 'Print: ' + (state.isSheetFormat ? state.quantity + ' pcs × ₹' + state.rateApplied + ' / pc' : state.totalMeters.toFixed(2) + ' meters × ₹' + state.rateApplied + ' / m')}
               </div>
               <div class="breakdown-badge" id="breakdown-conversion-row" style="display: ${showConversion ? 'inline-block' : 'none'}; background: #e0e7ff; color: #4338ca;">Conv: ${state.conversionBreakdown}</div>
@@ -137,13 +152,13 @@ function updateDOM(container, state) {
   if (metricValue) {
     metricValue.textContent = hasCart
       ? `${state.cart.length} item(s)`
-      : (isUVAuto && state.printTechnology === 'digital' ? `${state.autoSheets} sheets` : isDropship ? `${state.dropshipQty || 0} pcs` : (isUVAuto ? `${state.quantity} sheets` : (state.isSheetFormat ? state.quantity + ' pcs' : state.totalMeters.toFixed(3) + 'm')));
+      : (isUVAuto && state.printTechnology === 'digital' ? `${state.autoSheets} sheets` : isDropship ? `${state.dropshipQty || 0} ${state.printTechnology === 'digital' ? 'sheets' : 'pcs'}` : (isUVAuto ? `${state.quantity} sheets` : (state.isSheetFormat ? state.quantity + ' pcs' : state.totalMeters.toFixed(3) + 'm')));
   }
   if (metricSub) {
     const isAuto = state.inputMode === 'image' || state.inputMode === 'manual-size';
     metricSub.textContent = hasCart
       ? `${state.cart.reduce((sum, item) => sum + (item.isSheetFormat ? item.quantity : 1), 0)} items total`
-      : (isUVAuto && state.printTechnology === 'digital' ? `${state.stickersPerSheet || 0} pcs / sheet` : isDropship ? '@ ₹' + (state.dropshipRate || 0) + ' / pc' : isAuto
+      : (isUVAuto && state.printTechnology === 'digital' ? `${state.stickersPerSheet || 0} pcs / sheet · @ ₹${state.dropshipRate || 0} / sheet` : isDropship ? '@ ₹' + (state.dropshipRate || 0) + (state.printTechnology === 'digital' ? ' / sheet' : ' / pc') : isAuto
           ? (state.printTechnology === 'uv_dtf'
               ? `${state.stickersPerSheet || 0} pcs / sheet`
               : `${state.stickersPerSheet || 0} pcs / meter`
@@ -167,8 +182,15 @@ function updateDOM(container, state) {
   if (delSub) delSub.textContent = deliveryKpiSub;
 
   // Breakdown badges
+  const bDigital = container.querySelector('#breakdown-digital');
+  const digHTML = digitalBreakdownHTML(state);
+  if (bDigital) {
+    bDigital.style.display = digHTML ? 'block' : 'none';
+    bDigital.innerHTML = digHTML;
+  }
   const bPrint = container.querySelector('#breakdown-print');
   if (bPrint) {
+    bPrint.style.display = digHTML ? 'none' : '';
     bPrint.textContent = hasCart
       ? 'Print: ' + state.printBreakdown
       : 'Print: ' + (state.printBreakdown || (state.isSheetFormat ? state.quantity + ' pcs × ₹' + state.rateApplied + ' / pc' : state.totalMeters.toFixed(2) + ' meters × ₹' + state.rateApplied + ' / m'));

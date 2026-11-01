@@ -3,6 +3,7 @@
  * Renders controls and binds events to controller.
  */
 
+import { GST_MODES } from '../modules/gstEngine.js';
 import { subscribe, getState } from '../state/store.js';
 import { onInputChange, onImagesUpdated, addConversion, updateConversion, removeConversion, setDesignTab, addManualSize, updateManualSize, removeManualSize, overrideImageWidth, setPrintTechnology, setUvPrintType, addToCart, removeFromCart, clearCart } from '../controller/appController.js';
 import { processImage } from '../modules/imageProcessor.js';
@@ -334,6 +335,28 @@ function buildHTML(state) {
       </div>
     </div>
 
+    <div class="card" id="gst-card">
+      <div class="card-header">
+        <h2 class="card-title">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="card-icon">
+            <line x1="19" y1="5" x2="5" y2="19"></line>
+            <circle cx="6.5" cy="6.5" r="2.5"></circle>
+            <circle cx="17.5" cy="17.5" r="2.5"></circle>
+          </svg>
+          GST / Tax
+        </h2>
+      </div>
+      <div class="card-body">
+        <div class="field-group" style="margin-bottom: 0;">
+          <label class="field-label">Is GST required?</label>
+          <div class="btn-group" id="gst-group">
+            ${GST_MODES.map(g => `<button class="btn btn-select ${state.gstMode === g.v ? 'active' : ''}" data-action="gst" data-value="${g.v}" id="btn-gst-${g.v}">${g.t}</button>`).join('')}
+          </div>
+          <div style="font-size: 11px; color: var(--text-muted); margin-top: 10px;">18% GST on the print amount. Shipping is not taxed. “GST Inclusive” means the quoted amount already contains GST.</div>
+        </div>
+      </div>
+    </div>
+
   `;
 }
 
@@ -363,6 +386,9 @@ function handleClick(e) {
       break;
     case 'delivery':
       onInputChange('deliveryMethod', value);
+      break;
+    case 'gst':
+      onInputChange('gstMode', value);
       break;
     case 'filter':
       onInputChange('courierFilter', value);
@@ -766,6 +792,11 @@ function updateDOM(container, state) {
     }
   }
 
+  // GST buttons
+  container.querySelectorAll('#gst-group .btn-select').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.value === (state.gstMode || 'none'));
+  });
+
   // Update delivery buttons
   container.querySelectorAll('#delivery-group .btn-select').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.value === state.deliveryMethod);
@@ -840,7 +871,6 @@ function updateDOM(container, state) {
               <span>Qty: ${item.quantity} ${item.printTechnology === 'digital' ? 'sheets' : 'pcs × ₹' + item.rate}</span>
               <span>•</span>
               <span>Price: ₹${Math.ceil(item.printCost)}</span>
-              ${item.gstMode === 'add' ? `<span>•</span><span>+ GST ₹${item.gstAdd}</span>` : (item.gstMode === 'inclusive' ? '<span>•</span><span>GST incl.</span>' : '')}
               ${item.options ? `<span>•</span><span>${escapeHtml(item.options)}</span>` : ''}
             </div>
           </div>

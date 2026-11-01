@@ -10,7 +10,7 @@ import {
   baseRate, ADDONS, isApparel, placementsFor, groupedProducts, rateBreakdown, unitRate, lineTotal,
 } from '../modules/dropshipEngine.js';
 import {
-  DIGITAL_MATERIALS, PREMIUM_FINISHES, LAMINATIONS, GST_MODES, LAMINATION_MOQ, DIE_CUT_RATE, FILE_SETTING_RATE,
+  DIGITAL_MATERIALS, PREMIUM_FINISHES, LAMINATIONS, LAMINATION_MOQ, DIE_CUT_RATE, FILE_SETTING_RATE,
   DIGITAL_SHEET_LABEL, findMaterial, normalizeDigital, calcDigital,
 } from '../modules/digitalEngine.js';
 
@@ -155,17 +155,11 @@ function digitalExtras(d) {
   return `
     ${premiumBlock}
     <div class="ds-row" style="margin-top: var(--space-lg);">
-      <div style="flex: 1 1 45%; min-width: 160px;">
+      <div style="flex: 1 1 100%; min-width: 160px;">
         <label class="field-label">LAMINATION <span class="ds-sub">(per side, per sheet)</span></label>
         <select class="input-field" data-ds="spec" data-key="lamination" id="ds-spec-lamination">
           ${LAMINATIONS.map(l => `<option value="${l}" ${d.lamination === l ? 'selected' : ''} ${l === 'Velvet' && sheets < LAMINATION_MOQ ? 'disabled' : ''}>${
             l === 'None' ? 'No lamination' : l === 'Velvet' ? `Velvet (${LAMINATION_MOQ}+ sheets only)` : l}</option>`).join('')}
-        </select>
-      </div>
-      <div style="flex: 1 1 45%; min-width: 160px;">
-        <label class="field-label">GST / TAX</label>
-        <select class="input-field" data-ds="spec" data-key="gst" id="ds-spec-gst">
-          ${GST_MODES.map(g => `<option value="${g.v}" ${d.gst === g.v ? 'selected' : ''}>${esc(g.t)}</option>`).join('')}
         </select>
       </div>
     </div>
@@ -208,18 +202,15 @@ function refreshSummary(d) {
   if (isDigital()) {
     const r = calcDigital(d, eff);
     if (!r.valid) {
+      box.style.display = '';
       box.innerHTML = `<div class="ds-line" style="color:#dc2626;"><span>⚠ ${esc(r.error)}</span></div>`;
       return;
     }
-    const money = n => Number(n).toLocaleString('en-IN', { maximumFractionDigits: 2 });
-    box.innerHTML = `
-      ${r.lines.map(l => `<div class="ds-line"><span>${esc(l.label)}</span><span>${l.amount ? '₹' + money(l.amount) : esc(l.note || 'Included')}</span></div>`).join('')}
-      <div class="ds-line ds-rate"><span>Subtotal (${r.sheets} sheet${r.sheets > 1 ? 's' : ''})</span><span>₹${money(r.subtotal)}</span></div>
-      ${r.gstMode === 'add' ? `<div class="ds-line"><span>GST 18% (added)</span><span>₹${money(r.gstAdd)}</span></div>` : ''}
-      ${r.gstMode === 'inclusive' ? `<div class="ds-line"><span>GST 18% included (base ₹${money(r.gstBase)})</span><span>₹${money(r.gstIncluded)}</span></div>` : ''}
-      <div class="ds-line ds-total"><span>${r.gstMode === 'add' ? 'Total with GST' : 'Total'} <span class="ds-sub">(shipping extra)</span></span><span>₹${money(r.totalExShipping)}</span></div>`;
+    box.style.display = 'none';   // the full calculation is shown in the Decision & Calculation card
+    box.innerHTML = '';
     return;
   }
+  box.style.display = '';
   const rows = rateBreakdown(d.variant, d.placements, d.addons, 0);
   const { qty, rate, total } = lineTotal(d.variant, eff, d.placements, d.addons, 0);
   box.innerHTML = `

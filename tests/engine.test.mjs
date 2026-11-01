@@ -268,35 +268,52 @@ test('Digital: optional die-cut on plain sheets pulls in file setting automatica
   assert.equal(dq({ material: 'Paper 300 GSM', dieCut: true }, 10).subtotal, 250 + 250 + 150);
   assert.equal(dq({ material: 'Paper 300 GSM', fileSetting: true }, 10).subtotal, 250 + 150);
 });
-test('Digital: GST — none by default, add 18%, or inclusive (never added twice)', () => {
-  const base = { material: 'NT Sticker', premium: 'Spot UV' };               // ₹270/sheet
-  // use a clean ₹1000 subtotal: 4 × Paper 130? -> craft: NT 300 Micron ₹70 × ... use direct check below
-  const none = dq({ ...base }, 4);
-  assert.equal(none.gstAdd, 0); assert.equal(none.gstIncluded, 0);
-  const add = dq({ ...base, gst: 'add' }, 4);                                  // ₹1080
-  assert.equal(add.subtotal, 1080);
-  assert.equal(add.gstAdd, 194.4);
-  assert.equal(add.totalExShipping, 1274.4);
-  const inc = dq({ ...base, gst: 'inclusive' }, 4);
-  assert.equal(inc.totalExShipping, 1080);                                     // customer pays the same
-  assert.equal(inc.gstIncluded + inc.gstBase, 1080);
-  assert.equal(inc.gstAdd, 0);
-  // the boss's own example: ₹1,000 inclusive -> GST ₹152.54, base ₹847.46
-  const eg = dq({ material: 'Paper 300 GSM', gst: 'inclusive' }, 40);         // 40 × ₹25 = ₹1000
-  assert.equal(eg.subtotal, 1000); assert.equal(eg.gstIncluded, 152.54); assert.equal(eg.gstBase, 847.46);
-  assert.equal(dq({ material: 'Paper 300 GSM', gst: 'add' }, 40).totalExShipping, 1180);
+const gstm = await import('../js/modules/gstEngine.js');
+test('GST: none by default, add 18%, or inclusive (never added twice) — the boss\'s ₹1,000 example', () => {
+  assert.deepEqual(gstm.gstOn(1000, 'none'), { mode: 'none', add: 0, included: 0, base: 1000 });
+  assert.equal(gstm.gstOn(1000, undefined).add, 0);
+  assert.equal(gstm.gstOn(1000, 'add').add, 180);                          // customer pays 1,180
+  const inc = gstm.gstOn(1000, 'inclusive');
+  assert.equal(inc.included, 152.54); assert.equal(inc.base, 847.46); assert.equal(inc.add, 0);
 });
-test('Digital: full quote — shipping stays separate (and untaxed); GST add is in the final total', () => {
-  const st = { printTechnology: 'digital', inputMode: 'manual', deliveryMethod: 'transport', digital: dg.normalizeDigital({ material: 'Paper 300 GSM', gst: 'add', qty: 40 }) };
+test('GST applies to every technology and never taxes shipping', () => {
+  const noGst = quote({ printTechnology: 'fabric', format: 'Meters', rawLength: '3', deliveryMethod: 'transport' });
+  const add = quote({ printTechnology: 'fabric', format: 'Meters', rawLength: '3', deliveryMethod: 'transport', gstMode: 'add' });
+  assert.equal(noGst.gstAddTotal, 0);
+  assert.equal(add.gstAddTotal, Math.round((noGst.printCost + noGst.conversionCost) * 0.18 * 100) / 100);
+  assert.equal(add.finalTotal, Math.ceil(noGst.finalTotal + add.gstAddTotal));   // shipping part unchanged
+  assert.match(add.quoteText, /GST \(18%\) added/);
+  const inc = quote({ printTechnology: 'uv_dtf', format: 'A3', quantity: 10, gstMode: 'inclusive' });
+  const plain = quote({ printTechnology: 'uv_dtf', format: 'A3', quantity: 10 });
+  assert.equal(inc.finalTotal, plain.finalTotal);                                // total does not change
+  assert.ok(inc.gstIncludedTotal > 0); assert.match(inc.quoteText, /GST Inclusive/);
+  const ds2 = quote({ printTechnology: 'dropship', dropship: { variant: 'Mug White', qty: 10, placements: {}, addons: [], weight: 1 }, gstMode: 'add' });
+  assert.equal(ds2.gstAddTotal, 180);                                            // 10 × ₹100 = ₹1,000
+  const sub = quote({ printTechnology: 'sublimation', format: 'A4', quantity: 5, gstMode: 'add' });
+  assert.ok(sub.gstAddTotal > 0);
+});
+test('GST on a cart is taken on the cart total', () => {
+  const item = { printTechnology: 'fabric', format: 'A4', isSheetFormat: true, quantity: 1, printCost: 500, conversionCost: 100, conversions: [], totalMeters: 0, totalSqInches: 0, length: 8, pricingWidth: 11, weight: 0.1 };
+  const q = quote({ cart: [item], gstMode: 'add' });
+  assert.equal(q.gstAddTotal, 108);
+  assert.equal(q.finalTotal, 500 + 100 + 108 + q.shippingCost + q.packagingCost);
+});
+test('Digital: per-sheet rate shown is the all-in rate (₹1,050 / 15 sheets = ₹70) and the line items are exposed', () => {
+  const st = { printTechnology: 'digital', inputMode: 'manual', deliveryMethod: 'pickup', digital: dg.normalizeDigital({ material: 'Paper 300 GSM', lamination: 'Matt', dieCut: true, qty: 15 }) };
   const q = quote(st);
-  assert.equal(q.isValid, true);
-  assert.equal(q.printCost, 1000);
-  assert.equal(q.gstAddTotal, 180);
+  assert.equal(q.printCost, 1050);                    // 375 + 150 + 375 + 150
+  assert.equal(q.dropshipRate, 70);
+  assert.equal(q.digitalSummary.sheets, 15);
+  assert.equal(q.digitalSummary.lines.length, 4);
+});
+test('Digital with GST: Add adds 18% on the subtotal, Inclusive keeps the total (shipping untaxed)', () => {
+  const st = { printTechnology: 'digital', inputMode: 'manual', deliveryMethod: 'transport', digital: dg.normalizeDigital({ material: 'Paper 300 GSM', qty: 40 }) };
+  const q = quote({ ...st, gstMode: 'add' });
+  assert.equal(q.printCost, 1000); assert.equal(q.gstAddTotal, 180);
   assert.equal(q.finalTotal, 1000 + 180 + q.shippingCost + q.packagingCost);
-  assert.match(q.quoteText, /GST \(18%\) added: ₹180/);
-  const inc = quote({ ...st, digital: dg.normalizeDigital({ ...st.digital, gst: 'inclusive' }) });
+  const inc = quote({ ...st, gstMode: 'inclusive' });
   assert.equal(inc.finalTotal, 1000 + inc.shippingCost + inc.packagingCost);
-  assert.match(inc.quoteText, /GST Inclusive/);
+  assert.equal(inc.gstIncludedTotal, 152.54);
 });
 test('Digital: invalid (Velvet under 10 sheets) is blocked in the quote', () => {
   const q = quote({ printTechnology: 'digital', digital: dg.normalizeDigital({ material: 'Paper 300 GSM', lamination: 'Velvet', qty: 5 }) });

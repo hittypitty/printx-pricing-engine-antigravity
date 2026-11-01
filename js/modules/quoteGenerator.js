@@ -154,6 +154,7 @@ export function generateQuote(state) {
         lines.push(`📦 Quantity: ${dropshipItem.qty} piece(s) × ₹${dropshipItem.rate}`);
       }
       lines.push(`💵 Product Cost: ₹${Math.ceil(printCost)}`);
+      gstLines().forEach(l => lines.push(l));
     }
 
     if (deliveryMethod === 'pickup') {
@@ -201,6 +202,7 @@ export function generateQuote(state) {
   if (state.conversions && state.conversions.length > 0) {
     lines.push(`✨ Conversions: ${state.conversionBreakdown}`);
   }
+  gstLines().forEach(l => lines.push(l));
 
   if (deliveryMethod === 'pickup') {
     lines.push('🏢 Delivery: Office Pickup (Free)');

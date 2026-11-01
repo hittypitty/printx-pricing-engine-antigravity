@@ -14,12 +14,10 @@
  *  • Plotter die-cut ₹25 / sheet (compulsory on every sticker). File setting ₹150 / order,
  *    switched on automatically with die-cut. Premium prints include both (not charged twice).
  *  • Regular printing MOQ: 1 sheet.
- *  • GST optional, default No. If yes: "Add GST" (18% on top) or "GST Inclusive" (already inside the
- *    quoted amount — never added twice). Shipping is always separate and is never taxed here.
+ *  • GST is a separate, global option (see gstEngine.js) that works for every technology. Shipping is always separate.
  */
 
 export const DIGITAL_SHEET_LABEL = '12" × 18"';
-export const GST_RATE = 0.18;
 
 export const DIGITAL_MATERIALS = [
   { key: 'Paper 130 GSM',       group: 'Paper',    single: 25,  double: 30 },
@@ -35,11 +33,6 @@ export const DIGITAL_MATERIALS = [
 
 export const PREMIUM_FINISHES = ['Gold Foil', 'Spot UV'];
 export const LAMINATIONS = ['None', 'Gloss', 'Matt', 'Velvet'];
-export const GST_MODES = [
-  { v: 'none', t: 'No GST' },
-  { v: 'add', t: 'Add GST (18%)' },
-  { v: 'inclusive', t: 'GST Inclusive' },
-];
 
 export const LAMINATION_MOQ = 10;               // 10+ sheets get the low lamination rate (and Velvet)
 export const LAMINATION_RATE_LOW_QTY = 100;     // ₹ per side per sheet, 1–9 sheets (Gloss / Matt)
@@ -49,11 +42,10 @@ export const FILE_SETTING_RATE = 150;           // ₹ per order
 
 export const DIGITAL_DEFAULTS = {
   material: 'Paper 300 GSM', sides: 'Single side', premium: 'None', lamination: 'None',
-  dieCut: false, fileSetting: false, gst: 'none',
+  dieCut: false, fileSetting: false,
 };
 
 export const findMaterial = key => DIGITAL_MATERIALS.find(m => m.key === key) || DIGITAL_MATERIALS[1];
-const round2 = n => Math.round(n * 100) / 100;
 
 /** Keep the selection consistent (e.g. stickers are single side only, premium only where a premium rate exists). */
 export function normalizeDigital(d = {}) {
@@ -64,7 +56,6 @@ export function normalizeDigital(d = {}) {
   if (m.double == null) out.sides = 'Single side';
   if (!m.premium || !PREMIUM_FINISHES.includes(out.premium)) out.premium = 'None';
   if (!LAMINATIONS.includes(out.lamination)) out.lamination = 'None';
-  if (!GST_MODES.some(g => g.v === out.gst)) out.gst = 'none';
   if (m.sticker) out.dieCut = true;                      // sticker die-cut is compulsory
   if (out.dieCut) out.fileSetting = true;                // file setting is automatic with die-cut
   return out;
@@ -76,7 +67,7 @@ export function normalizeDigital(d = {}) {
  * @param {object} d      selection (see DIGITAL_DEFAULTS) + qty
  * @param {number} sheets sheets to print (auto-packed from designs, or typed quantity)
  * @returns {{valid:boolean,error?:string,sheets:number,rate:number,lines:{label:string,amount:number,note?:string}[],
- *            subtotal:number,gstMode:string,gstAdd:number,gstIncluded:number,gstBase:number,totalExShipping:number,options:string,breakdown:string}}
+ *            subtotal:number,options:string,breakdown:string}}
  */
 export function calcDigital(d, sheets) {
   const sel = normalizeDigital(d);
@@ -121,15 +112,6 @@ export function calcDigital(d, sheets) {
 
   const subtotal = lines.reduce((n, l) => n + l.amount, 0);
 
-  // 4. GST (optional). Shipping is added elsewhere and is not taxed here.
-  let gstAdd = 0, gstIncluded = 0, gstBase = subtotal;
-  if (sel.gst === 'add') {
-    gstAdd = round2(subtotal * GST_RATE);
-  } else if (sel.gst === 'inclusive') {
-    gstBase = round2(subtotal / (1 + GST_RATE));
-    gstIncluded = round2(subtotal - gstBase);
-  }
-
   const parts = [`${m.key}${double ? ' (double side)' : ''}`];
   if (premium) parts.push(sel.premium);
   if (sel.lamination !== 'None') parts.push(`${sel.lamination} lamination`);
@@ -142,16 +124,11 @@ export function calcDigital(d, sheets) {
     rate,
     lines,
     subtotal,
-    gstMode: sel.gst,
-    gstAdd,
-    gstIncluded,
-    gstBase,
-    totalExShipping: round2(subtotal + gstAdd),
     options: parts.join(' · '),
     breakdown: lines.map(l => `${l.label}${l.amount ? ' ₹' + l.amount : ''}`).join(' + '),
   };
 }
 
 function invalid(error, sheets, rate) {
-  return { valid: false, error, sheets, rate, lines: [], subtotal: 0, gstMode: 'none', gstAdd: 0, gstIncluded: 0, gstBase: 0, totalExShipping: 0, options: '', breakdown: '' };
+  return { valid: false, error, sheets, rate, lines: [], subtotal: 0, options: '', breakdown: '' };
 }
