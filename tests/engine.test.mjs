@@ -353,5 +353,12 @@ test('Digital: sheet count for manual sizes follows the printable area (2×2 sti
   assert.equal(big.isValid, false);                                                  // fits 12×18 but not the 11×17 die-cut area
 });
 
+test('Digital: shows how many designs fit on one sheet — 2×2 on 11×17 die-cut area = 35 (0.2" gap)', () => {
+  const q = calculateQuote({ ...base, printTechnology: 'digital', inputMode: 'manual-size', designTab: 'manual-size',
+    digital: dg.normalizeDigital({ ...dg.DIGITAL_DEFAULTS, material: 'Paper Sticker' }),
+    manualSizes: [{ id: 'a', width: 2, height: 2, length: 2, qty: 1, quantity: 1 }] }, config);
+  assert.equal(q.stickersPerSheet, 35);
+});
+
 console.log(`\n${passed} passed, ${failed} failed\n`);
 if (failed > 0) process.exit(1);

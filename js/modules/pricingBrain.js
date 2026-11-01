@@ -23,6 +23,7 @@ import { gstOn } from './gstEngine.js';
 import {
   getPrintableWidthFor,
   getImageWidthLimitFor,
+  getPackingMarginFor,
   getDigitalSheet,
   setActiveDigitalSheet,
   UV_SHEET_WIDTH,
@@ -72,7 +73,7 @@ const SIZE_TOLERANCE = 0.1; // inches — allowance when matching a design to a 
  * Groups identical sticker sizes (ignoring orientation) to pack them together.
  * Returns totalSheets = Infinity if any design cannot fit on the sheet.
  */
-export function calculateUVDTFSheets(items, sheetW, sheetH) {
+export function calculateUVDTFSheets(items, sheetW, sheetH, gapIn = 0.0787) {
   const groups = {};
   items.forEach(item => {
     const w = Number(item.width || item.w || 0);
@@ -96,7 +97,7 @@ export function calculateUVDTFSheets(items, sheetW, sheetH) {
   let isFirst = true;
 
   Object.values(groups).forEach(g => {
-    const gap = 0.0787; // 2mm in inches
+    const gap = gapIn; // UV: 2mm (0.0787"); Digital passes 0.2"
 
     // Option 1: Original orientation
     const fitX1 = Math.floor((sheetW + gap) / (g.w + gap));
@@ -715,6 +716,7 @@ function calculateDropshipQuote(s, config) {
   const DIGITAL_SHEET_H = area.h;
   // Digital Printing: designs (uploaded images / manual sizes) decide how many sheets are needed
   let autoSheets = null;
+  let perSheetCapacity = 0;
   let autoDesigns = 0;
   let autoPieces = 0;
   if (tech === 'digital' && (s.inputMode === 'image' || s.inputMode === 'manual-size')) {
@@ -723,11 +725,12 @@ function calculateDropshipQuote(s, config) {
     if (touched) {
       const err = validateAutoInputs(s, items, DIGITAL_SHEET_W);
       if (err) return buildInvalid(err, s, config);
-      const packed = calculateUVDTFSheets(items, DIGITAL_SHEET_W, DIGITAL_SHEET_H);
+      const packed = calculateUVDTFSheets(items, DIGITAL_SHEET_W, DIGITAL_SHEET_H, getPackingMarginFor('digital'));
       if (!Number.isFinite(packed.totalSheets)) {
         return buildInvalid(`A design doesn't fit in the printable area (${DIGITAL_SHEET_W}" × ${DIGITAL_SHEET_H}"). Please reduce the size.`, s, config);
       }
       autoSheets = packed.totalSheets;
+      perSheetCapacity = packed.stickersPerSheet || 0;
       autoDesigns = items.length;
       autoPieces = items.reduce((n, it) => n + (Number(it.quantity) || 1), 0);
     }
@@ -770,7 +773,7 @@ function calculateDropshipQuote(s, config) {
     digitalPrintable: tech === 'digital' ? area : null,
     autoDesigns,
     autoPieces,
-    stickersPerSheet: autoSheets ? Math.ceil(autoPieces / autoSheets) : 0,
+    stickersPerSheet: autoSheets ? (perSheetCapacity || Math.ceil(autoPieces / autoSheets)) : 0,
     effectiveRate: autoSheets ? (total / (autoSheets * DIGITAL_SHEET_W * DIGITAL_SHEET_H)).toFixed(2) : '0.00',
     dropshipRate: dig ? Math.round((total / qty) * 100) / 100 : rate,
     dropshipItem: { variant: d.variant, qty, rate, total, options, autoSheets, autoPieces, digital: dig },
