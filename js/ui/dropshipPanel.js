@@ -168,11 +168,11 @@ function digitalExtras(d) {
       <div class="chip-group">
         <label class="chip ${d.dieCut ? 'active' : ''}" style="cursor: ${m.sticker ? 'default' : 'pointer'};">
           <input type="checkbox" data-ds="flag" data-key="dieCut" id="ds-flag-dieCut" ${d.dieCut ? 'checked' : ''} ${m.sticker ? 'disabled' : ''} style="display:none;" />
-          Plotter die-cut ${premiumOn ? '(included)' : '(+₹' + DIE_CUT_RATE + ' / sheet' + (m.sticker ? ', compulsory' : '') + ')'}
+          Plotter die-cut ${(premiumOn || m.sticker) ? '(included)' : '(+₹' + DIE_CUT_RATE + ' / sheet' + (m.sticker ? ', compulsory' : '') + ')'}
         </label>
         <label class="chip ${d.fileSetting ? 'active' : ''}" style="cursor: ${d.dieCut ? 'default' : 'pointer'};">
           <input type="checkbox" data-ds="flag" data-key="fileSetting" id="ds-flag-fileSetting" ${d.fileSetting ? 'checked' : ''} ${d.dieCut ? 'disabled' : ''} style="display:none;" />
-          File setting ${premiumOn ? '(included)' : '(+₹' + FILE_SETTING_RATE + ' / order' + (d.dieCut ? ', auto with die-cut' : '') + ')'}
+          File setting ${(premiumOn || m.sticker) ? '(included)' : '(+₹' + FILE_SETTING_RATE + ' / order' + (d.dieCut ? ', auto with die-cut' : '') + ')'}
         </label>
       </div>
     </div>`;
