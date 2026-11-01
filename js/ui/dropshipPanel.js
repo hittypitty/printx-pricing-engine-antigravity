@@ -194,8 +194,7 @@ function syncAuto(state) {
   if (auto) input.value = String(auto);
   else if (document.activeElement !== input) input.value = String(current(state).qty);
   if (hint) {
-    hint.hidden = !auto;
-    if (auto) hint.textContent = `Auto from ${state.autoDesigns} design${state.autoDesigns === 1 ? '' : 's'}. Clear designs to type sheets yourself.`;
+    hint.hidden = true;   // no explanatory text under the sheets box (boss: not needed)
   }
 }
 
