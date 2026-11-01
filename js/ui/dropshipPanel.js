@@ -100,10 +100,10 @@ function render(d) {
             <input type="number" class="input-field" min="1" step="1" value="${esc(d.qty)}" data-ds="qty" id="ds-qty" />
             <div class="ds-auto-hint" id="ds-auto-hint" hidden></div>
           </div>
-          <div style="flex: 1; min-width: 110px;">
+          ${digital ? '' : `<div style="flex: 1; min-width: 110px;">
             <label class="field-label">PARCEL WT (KG)</label>
             <input type="number" class="input-field" min="0" step="0.05" value="${esc(d.weight)}" data-ds="weight" id="ds-weight" />
-          </div>
+          </div>`}
         </div>
         ${digital ? digitalExtras(d) : placementRows}
         <div class="ds-summary" id="ds-summary"></div>
