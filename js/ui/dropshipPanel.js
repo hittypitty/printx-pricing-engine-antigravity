@@ -11,7 +11,7 @@ import {
 } from '../modules/dropshipEngine.js';
 import {
   DIGITAL_MATERIALS, PREMIUM_FINISHES, LAMINATIONS, GST_MODES, LAMINATION_MOQ, DIE_CUT_RATE, FILE_SETTING_RATE,
-  DIGITAL_SHEET_LABEL, findMaterial, materialRateLabel, normalizeDigital, calcDigital,
+  DIGITAL_SHEET_LABEL, findMaterial, normalizeDigital, calcDigital,
 } from '../modules/digitalEngine.js';
 
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -119,10 +119,10 @@ function digitalSpecs(d) {
   const m = findMaterial(d.material);
   const groups = ['Paper', 'NT', 'Stickers'].map(g => `<optgroup label="${g === 'Stickers' ? 'Stickers (die-cut included)' : g}">${
     DIGITAL_MATERIALS.filter(x => x.group === g).map(x =>
-      `<option value="${esc(x.key)}" ${x.key === m.key ? 'selected' : ''}>${esc(x.key)} — ${materialRateLabel(x)}</option>`).join('')}</optgroup>`).join('');
+      `<option value="${esc(x.key)}" ${x.key === m.key ? 'selected' : ''}>${esc(x.key)}</option>`).join('')}</optgroup>`).join('');
   return `
     <div style="flex: 1 1 60%; min-width: 200px;">
-      <label class="field-label">MATERIAL <span class="ds-sub">(₹ per sheet: single / double)</span></label>
+      <label class="field-label">MATERIAL</label>
       <select class="input-field" data-ds="spec" data-key="material" id="ds-spec-material">${groups}</select>
     </div>
     <div style="flex: 1 1 30%; min-width: 140px;">

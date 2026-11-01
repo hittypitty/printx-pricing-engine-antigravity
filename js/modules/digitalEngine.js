@@ -70,8 +70,6 @@ export function normalizeDigital(d = {}) {
   return out;
 }
 
-/** Starting per-sheet rate shown next to each material in the dropdown. */
-export const materialRateLabel = m => (m.double != null ? `₹${m.single} / ₹${m.double}` : `₹${m.single}`);
 
 /**
  * Price a Digital selection.
