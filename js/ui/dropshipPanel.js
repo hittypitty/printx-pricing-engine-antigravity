@@ -10,7 +10,7 @@ import {
   baseRate, ADDONS, isApparel, placementsFor, groupedProducts, rateBreakdown, unitRate, lineTotal,
 } from '../modules/dropshipEngine.js';
 import {
-  DIGITAL_MATERIALS, PREMIUM_FINISHES, LAMINATIONS, LAMINATION_MOQ, DIE_CUT_RATE, HAND_CUT_RATE, FILE_SETTING_RATE,
+  DIGITAL_MATERIALS, PREMIUM_FINISHES, digitalPrintableArea, LAMINATIONS, LAMINATION_MOQ, DIE_CUT_RATE, HAND_CUT_RATE, FILE_SETTING_RATE,
   DIGITAL_SHEET_LABEL, findMaterial, normalizeDigital, calcDigital,
 } from '../modules/digitalEngine.js';
 
@@ -179,6 +179,7 @@ function digitalExtras(d) {
           File setting ${(premiumOn || m.sticker) ? '(included)' : '(+₹' + FILE_SETTING_RATE + ' / order' + (d.dieCut ? ', auto with die-cut' : '') + ')'}
         </label>
       </div>
+      <div class="ds-auto-hint" style="margin-top:8px;">Printable area: ${(() => { const a = digitalPrintableArea(d); return a.w + '" × ' + a.h + '" (' + a.label + ')'; })()}</div>
     </div>`;
 }
 

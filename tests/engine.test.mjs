@@ -330,5 +330,28 @@ test('Digital: hand cut is ₹50/sheet and does not auto-add file setting; exclu
   assert.equal(dg.normalizeDigital({ material: 'NT Sticker', handCut: true }).handCut, false);
 });
 
+test('Digital: printable area — 12×18 regular, 11×17 die-cut / stickers, 10.5×16.5 premium', () => {
+  assert.deepEqual([dg.digitalPrintableArea({ material: 'Paper 300 GSM' }).w, dg.digitalPrintableArea({ material: 'Paper 300 GSM' }).h], [12, 18]);
+  assert.equal(dg.digitalPrintableArea({ material: 'Paper 300 GSM', dieCut: true }).w, 11);
+  assert.equal(dg.digitalPrintableArea({ material: 'NT Sticker' }).h, 17);
+  assert.equal(dg.digitalPrintableArea({ material: 'Paper 300 GSM', handCut: true }).w, 12);   // hand cut: no plotter hold
+  const p = dg.digitalPrintableArea({ material: 'Paper Sticker', premium: 'Gold Foil' });
+  assert.deepEqual([p.w, p.h], [10.5, 16.5]);
+});
+test('Digital: sheet count for manual sizes follows the printable area (2×2 stickers, 500 pcs)', () => {
+  const run = d => calculateQuote({ ...base, printTechnology: 'digital', inputMode: 'manual-size', designTab: 'manual-size',
+    digital: dg.normalizeDigital({ ...dg.DIGITAL_DEFAULTS, ...d }),
+    manualSizes: [{ id: 'a', width: 2, height: 2, length: 2, qty: 500, quantity: 500 }] }, config);
+  const reg = run({ material: 'Paper 300 GSM' }), die = run({ material: 'Paper Sticker' }), prem = run({ material: 'Paper Sticker', premium: 'Gold Foil' });
+  assert.ok(reg.autoSheets > 0 && die.autoSheets >= reg.autoSheets && prem.autoSheets >= die.autoSheets);
+  assert.ok(die.autoSheets > reg.autoSheets || prem.autoSheets > reg.autoSheets);
+  const tooBig = run({ material: 'Paper Sticker', premium: 'Gold Foil' });
+  assert.ok(tooBig.isValid);
+  const big = calculateQuote({ ...base, printTechnology: 'digital', inputMode: 'manual-size', designTab: 'manual-size',
+    digital: dg.normalizeDigital({ ...dg.DIGITAL_DEFAULTS, material: 'Paper Sticker' }),
+    manualSizes: [{ id: 'a', width: 11.5, height: 5, length: 5, qty: 1, quantity: 1 }] }, config);
+  assert.equal(big.isValid, false);                                                  // fits 12×18 but not the 11×17 die-cut area
+});
+
 console.log(`\n${passed} passed, ${failed} failed\n`);
 if (failed > 0) process.exit(1);

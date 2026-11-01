@@ -18,7 +18,7 @@ import {
 } from './deliveryEngine.js';
 import { generateQuote } from './quoteGenerator.js';
 import { lineTotal, describeOptions, isCatalogTech } from './dropshipEngine.js';
-import { calcDigital } from './digitalEngine.js';
+import { calcDigital, digitalPrintableArea } from './digitalEngine.js';
 import { gstOn } from './gstEngine.js';
 import {
   getPrintableWidthFor,
@@ -709,8 +709,10 @@ function calculateDropshipQuote(s, config) {
   const d = s[tech] || {};
   if (tech === 'digital') setActiveDigitalSheet('12x18');
   const sheet = getDigitalSheet(tech === 'digital' ? d.sheetSize : undefined);
-  const DIGITAL_SHEET_W = sheet.w;
-  const DIGITAL_SHEET_H = sheet.h;
+  // Packing area = printable area of the chosen finishing (12×18 regular, 11×17 die-cut/sticker, 10.5×16.5 premium)
+  const area = tech === 'digital' ? digitalPrintableArea(d) : { w: sheet.w, h: sheet.h };
+  const DIGITAL_SHEET_W = area.w;
+  const DIGITAL_SHEET_H = area.h;
   // Digital Printing: designs (uploaded images / manual sizes) decide how many sheets are needed
   let autoSheets = null;
   let autoDesigns = 0;
@@ -719,11 +721,11 @@ function calculateDropshipQuote(s, config) {
     const items = getAutoItems(s);
     const touched = (s.images || []).length > 0 || (s.manualSizes || []).some(m => m.width !== '' || m.height !== '');
     if (touched) {
-      const err = validateAutoInputs(s, items, getPrintableWidthFor('digital'));
+      const err = validateAutoInputs(s, items, DIGITAL_SHEET_W);
       if (err) return buildInvalid(err, s, config);
       const packed = calculateUVDTFSheets(items, DIGITAL_SHEET_W, DIGITAL_SHEET_H);
       if (!Number.isFinite(packed.totalSheets)) {
-        return buildInvalid(`A design doesn't fit on a digital sheet (${DIGITAL_SHEET_W}" × ${DIGITAL_SHEET_H}"). Please reduce the size.`, s, config);
+        return buildInvalid(`A design doesn't fit in the printable area (${DIGITAL_SHEET_W}" × ${DIGITAL_SHEET_H}"). Please reduce the size.`, s, config);
       }
       autoSheets = packed.totalSheets;
       autoDesigns = items.length;
@@ -765,6 +767,7 @@ function calculateDropshipQuote(s, config) {
     cart: s.cart,
     dropshipQty: qty,
     autoSheets,
+    digitalPrintable: tech === 'digital' ? area : null,
     autoDesigns,
     autoPieces,
     stickersPerSheet: autoSheets ? Math.ceil(autoPieces / autoSheets) : 0,

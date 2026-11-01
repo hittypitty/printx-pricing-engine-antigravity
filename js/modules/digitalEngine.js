@@ -48,6 +48,18 @@ export const DIGITAL_DEFAULTS = {
   dieCut: false, handCut: false, fileSetting: false,
 };
 
+/**
+ * Printable area (inches) on a 12×18 sheet — the plotter holds the paper (~1" per side) when cutting, and
+ * Gold Foil / Spot UV need even more margin:  regular 12×18 · plotter die-cut (incl. every sticker) 11×17 ·
+ * premium 10.5×16.5. Designs are packed on THIS area, not on the full sheet.
+ */
+export function digitalPrintableArea(d = {}) {
+  const sel = normalizeDigital(d);
+  if (sel.premium !== 'None') return { w: 10.5, h: 16.5, label: 'Premium (Gold Foil / Spot UV)' };
+  if (sel.dieCut) return { w: 11, h: 17, label: 'Plotter die-cut' };
+  return { w: 12, h: 18, label: 'Regular' };
+}
+
 export const findMaterial = key => DIGITAL_MATERIALS.find(m => m.key === key) || DIGITAL_MATERIALS[1];
 
 /** Keep the selection consistent (e.g. stickers are single side only, premium only where a premium rate exists). */
