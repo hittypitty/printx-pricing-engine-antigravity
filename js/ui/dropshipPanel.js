@@ -112,7 +112,9 @@ function render(d) {
     </div>`;
   refreshSummary(d);
   syncAuto(getState());
-  if (hadFocus) { const el = mount.querySelector('#' + hadFocus); if (el) el.focus(); }
+  // Keep the caret in a typed field (sheets / weight) across a rebuild, but never re-focus a dropdown or
+  // button: on phones focusing a <select> re-opens its picker right after the choice was made.
+  if (hadFocus) { const el = mount.querySelector('#' + hadFocus); if (el && el.tagName === 'INPUT' && el.type !== 'checkbox') el.focus(); }
 }
 
 function digitalSpecs(d) {
