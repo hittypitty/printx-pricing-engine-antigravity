@@ -230,13 +230,13 @@ test('Digital: MOQ is 1 sheet', () => {
   assert.equal(dq({ material: 'Paper 300 GSM' }, 1).subtotal, 25);
   assert.equal(dq({ material: 'Paper 300 GSM' }, 0).sheets, 1);
 });
-test('Digital: stickers are single side only; the sticker rate already includes die-cut + file setting', () => {
+test('Digital: stickers are single side only; the sticker rate includes die-cut but file setting (₹150) is charged', () => {
   const r = dq({ material: 'Paper Sticker', sides: 'Double side' }, 10);
   assert.equal(r.valid, true);
-  assert.equal(r.subtotal, 80 * 10);          // double side ignored for stickers
-  assert.equal(dq({ material: 'NT Sticker' }, 1).subtotal, 100);
-  assert.equal(dq({ material: 'Gold Sticker' }, 1).subtotal, 100);
-  assert.equal(dq({ material: 'Transparent Sticker' }, 4).subtotal, 90 * 4);
+  assert.equal(r.subtotal, 80 * 10 + 150);          // double side ignored for stickers
+  assert.equal(dq({ material: 'NT Sticker' }, 1).subtotal, 100 + 150);
+  assert.equal(dq({ material: 'Gold Sticker' }, 1).subtotal, 100 + 150);
+  assert.equal(dq({ material: 'Transparent Sticker' }, 4).subtotal, 90 * 4 + 150);
 });
 test('Digital: premium (Gold Foil / Spot UV) is the complete per-sheet price, die-cut & file setting included', () => {
   assert.equal(dq({ material: 'Paper Sticker', premium: 'Gold Foil' }, 3).subtotal, 750);
@@ -260,7 +260,7 @@ test('Digital: lamination tiers — ₹100/side/sheet under 10 sheets, ₹10 fro
   void lam;
 });
 test('Digital: lamination is available on every material (stickers / NT / premium)', () => {
-  assert.equal(dq({ material: 'NT Sticker', lamination: 'Gloss' }, 10).subtotal, 100 * 10 + 100);
+  assert.equal(dq({ material: 'NT Sticker', lamination: 'Gloss' }, 10).subtotal, 100 * 10 + 100 + 150);
   assert.equal(dq({ material: 'Paper Sticker', premium: 'Gold Foil', lamination: 'Matt' }, 10).subtotal, 2500 + 100);
   assert.equal(dq({ material: 'NT 300 Micron', lamination: 'Matt' }, 2).subtotal, 140 + 200);
 });

@@ -176,7 +176,7 @@ function digitalExtras(d) {
         </label>`}
         <label class="chip ${d.fileSetting ? 'active' : ''}" style="cursor: ${d.dieCut ? 'default' : 'pointer'};">
           <input type="checkbox" data-ds="flag" data-key="fileSetting" id="ds-flag-fileSetting" ${d.fileSetting ? 'checked' : ''} ${d.dieCut ? 'disabled' : ''} style="display:none;" />
-          File setting ${(premiumOn || m.sticker) ? '(included)' : '(+₹' + FILE_SETTING_RATE + ' / order' + (d.dieCut ? ', auto with die-cut' : '') + ')'}
+          File setting ${premiumOn ? '(included)' : '(+₹' + FILE_SETTING_RATE + ' / order' + (d.dieCut ? ', auto with die-cut' : '') + ')'}
         </label>
       </div>
       <div class="ds-auto-hint" style="margin-top:8px;">Printable area: ${(() => { const a = digitalPrintableArea(d); return a.w + '" × ' + a.h + '" (' + a.label + ')'; })()}</div>

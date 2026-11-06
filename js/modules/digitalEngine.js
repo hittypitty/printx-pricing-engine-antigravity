@@ -11,7 +11,7 @@
  *  • Lamination (all materials), per side per sheet — sides follow the print sides:
  *      1–9 sheets  : Gloss / Matt ₹100, Velvet not available
  *      10+ sheets  : Gloss / Matt / Velvet ₹10
- *  • Sticker sheet rates already INCLUDE plotter die-cut + file setting (boss confirmed). For non-sticker
+ *  • Sticker sheet rates already INCLUDE plotter die-cut; file setting (₹150 / order) is charged separately. For non-sticker
  *    materials, optional die-cut is ₹25 / sheet and file setting ₹150 / order (auto with die-cut).
  *    Hand cut (non-sticker) is ₹50 / sheet and does NOT switch file setting on automatically.
  *    Premium prints include both too (not charged twice).
@@ -118,13 +118,16 @@ export function calcDigital(d, sheets) {
     });
   }
 
-  // 3. Plotter die-cut + file setting (premium prints include both)
-  if (premium || m.sticker) {
-    // Sticker rates (and premium prints) already include plotter die-cut + file setting
+  // 3. Plotter die-cut + file setting
+  //    Premium prints include both. Sticker rates include the die-cut only — file setting is still charged.
+  if (premium) {
     if (sel.dieCut) lines.push({ label: 'Plotter die-cut', amount: 0, note: 'Included' });
     if (sel.fileSetting) lines.push({ label: 'File setting', amount: 0, note: 'Included' });
   } else {
-    if (sel.dieCut) lines.push({ label: `Plotter die-cut (${qty} × ₹${DIE_CUT_RATE})`, amount: DIE_CUT_RATE * qty });
+    if (sel.dieCut) {
+      if (m.sticker) lines.push({ label: 'Plotter die-cut', amount: 0, note: 'Included' });
+      else lines.push({ label: `Plotter die-cut (${qty} × ₹${DIE_CUT_RATE})`, amount: DIE_CUT_RATE * qty });
+    }
     if (sel.handCut) lines.push({ label: `Hand cut (${qty} × ₹${HAND_CUT_RATE})`, amount: HAND_CUT_RATE * qty });
     if (sel.fileSetting) lines.push({ label: 'File setting', amount: FILE_SETTING_RATE });
   }
